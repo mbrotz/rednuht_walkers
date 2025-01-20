@@ -69,12 +69,12 @@ Walker.prototype.simulationStep = function(motor_noise) {
 1. **Iterating Through Joints**: The code iterates through each of the walker's joints using a `for` loop, ensuring every joint is updated each simulation step.
 2. **Motor Noise**: This code injects a small random value multiplied by the `motor_noise` configuration variable into the amplitude, phase, and frequency of the joint movement. This introduces randomness into the joint movement, which helps prevent the walkers from becoming too uniform in their movement. This is the only source of randomness in the joint movement, and as such, the walkers will move with more predictable steps if the `motor_noise` variable is set to `0`.
 3. **Calculating Motor Speed**: The critical line `this.joints[k].SetMotorSpeed(amp * Math.cos(phase + freq * globals.step_counter))` sets the motor speed of the joint based on the values stored in the gene, and the current time step. Here's the breakdown of the equation:
-    * `amp * Math.cos(phase + freq * globals.step_counter)`:
-    * `globals.step_counter` is the simulation time variable. The `globals.step_counter` variable represents the passage of time in the simulation. This value increments every simulation step in the `simulationStep()` function of the `game.js` file.
-    * `freq` (`time_factor`) scales the `globals.step_counter` variable to control the frequency of the oscillation.
-    * `phase` (`time_shift`) shifts the cosine wave forward or backward to control the start position of the rotation.
-    * `Math.cos()` produces a cosine value between -1 and 1, causing the joint to oscillate.
-    * `amp` (`cos_factor`) then scales this value to adjust the amplitude of the oscillation which sets the speed.
+    *   `amp * Math.cos(phase + freq * globals.step_counter)`:
+        *   `globals.step_counter` is the simulation time variable. The `globals.step_counter` variable represents the passage of time in the simulation. This value increments every simulation step in the `simulationStep()` function of the `game.js` file.
+        *   `freq` (`time_factor`) scales the `globals.step_counter` variable to control the frequency of the oscillation.
+        *   `phase` (`time_shift`) shifts the cosine wave forward or backward to control the start position of the rotation.
+        *   `Math.cos()` produces a cosine value between -1 and 1, causing the joint to oscillate.
+        *   `amp` (`cos_factor`) then scales this value to adjust the amplitude of the oscillation which sets the speed.
 
 **In simpler terms:**
 
