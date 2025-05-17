@@ -12,6 +12,8 @@ Walker.prototype.__constructor = function(world, genome) {
 
   this.density = 106.2; // common for all fixtures, no reason to be too specific
 
+  this.local_step_counter = 0;
+
   this.max_distance = -5;
   this.health = config.walker_health;
   this.score = 0;
@@ -339,7 +341,7 @@ Walker.prototype.simulationStep = function(motor_noise) {
       var phase = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_shift;
       var freq = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_factor;
       // globals.step_counter is the continuous global time step
-      this.joints[k].SetMotorSpeed(amp * Math.cos(phase + freq * globals.step_counter));
+      this.joints[k].SetMotorSpeed(amp * Math.cos(phase + freq * this.local_step_counter));
     }
   }
   var oldmax = this.max_distance;
@@ -380,6 +382,7 @@ Walker.prototype.simulationStep = function(motor_noise) {
       this.health = 0;
   }
 
+  this.local_step_counter++;
   return;
 }
 

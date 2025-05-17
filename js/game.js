@@ -8,20 +8,19 @@ config = {
   max_zoom_factor: 130,
   min_motor_speed: -2,
   max_motor_speed: 2,
-  population_size: 20,
   mutation_chance: 0.1,
   mutation_amount: 0.5,
   walker_health: 300,
   fitness_criterium: 'score', // 'score' or 'max_distance'
   check_health: true,
-  // elite_clones: 2, // Removed
   max_floor_tiles: 50,
-  // round_length: 1200, // Removed
   min_body_delta: 1.4,
   min_leg_delta: 0.4,
   instadeath_delta: 0.4,
+  population_size: 40,
   champion_pool_size: 5, // Number of recent champions to keep
-  parent_from_champion_chance: 0.3 // Probability to pick parent from champion pool
+  parent_from_champion_chance: 0.5, // Probability to pick parent from champion pool
+  parent_from_population_selection_pressure: 2,
 };
 
 globals = {};
@@ -40,7 +39,6 @@ gameInit = function() {
   globals.floor = createFloor();
   drawInit();
 
-  globals.step_counter = 0; // Global step counter for motor control, not reset
   globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
   if(config.draw_fps > 0) { // Check draw_fps before starting draw interval
     globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.draw_fps));
@@ -51,16 +49,6 @@ simulationStep = function() {
   globals.world.Step(1/config.time_step, config.velocity_iterations, config.position_iterations);
   globals.world.ClearForces();
   populationSimulationStep();
-  
-  // step_counter is used by walkers for their motor functions
-  if(typeof globals.step_counter == 'undefined') {
-    globals.step_counter = 0;
-  } else {
-    globals.step_counter++;
-  }
-
-  // Removed generation timer bar update
-  // Removed round end check
 }
 
 setSimulationFps = function(fps) {
@@ -94,7 +82,6 @@ createPopulation = function(initial_genomes) { // `initial_genomes` only used fo
       walker = new Walker(globals.world); // Creates walker with random genome
     }
     walker.id = globals.walker_id_counter;
-    // Removed is_elite logic
     walkers.push(walker);
   }
   return walkers;
@@ -134,7 +121,6 @@ populationSimulationStep = function() {
     }
   }
   printNames(globals.walkers); // Update UI list
-  // Removed check for all dead_dudes to call nextGeneration
 }
 
 replaceWalkerAtIndex = function(index) {
@@ -151,40 +137,59 @@ replaceWalkerAtIndex = function(index) {
 
 pickParentGenome = function() {
   var parent_genome_source = null;
+  var chosen_walker = null; // To store the selected walker instance
 
   // Decide source: Champion pool or Active pool
   if (Math.random() < config.parent_from_champion_chance && globals.champion_genomes.length > 0) {
     // Pick from champion pool
     var randomIndex = Math.floor(Math.random() * globals.champion_genomes.length);
     parent_genome_source = globals.champion_genomes[randomIndex];
+    // console.log("Picked from Champion Pool");
   } else {
-    // Pick from active pool (ensure there are living walkers to pick from)
+    // Pick from active pool using tournament selection
     var living_walkers_indices = [];
     for(var i=0; i < globals.walkers.length; i++) {
-        if(globals.walkers[i] && globals.walkers[i].health > 0) { // Check if walker exists and is alive
+        // Ensure walker exists and is alive (health > 0 is a good proxy, or !is_dead)
+        if(globals.walkers[i] && globals.walkers[i].health > 0) {
             living_walkers_indices.push(i);
         }
     }
+
     if (living_walkers_indices.length > 0) {
-        var randomLivingIndex = living_walkers_indices[Math.floor(Math.random() * living_walkers_indices.length)];
-        parent_genome_source = globals.walkers[randomLivingIndex].genome;
+      var best_walker_in_tournament = null;
+
+      for (var s = 0; s < config.parent_from_population_selection_pressure; s++) {
+        // Pick a random living walker for the tournament
+        var random_living_index_in_array = Math.floor(Math.random() * living_walkers_indices.length);
+        var candidate_walker_index = living_walkers_indices[random_living_index_in_array];
+        var candidate_walker = globals.walkers[candidate_walker_index];
+
+        if (!best_walker_in_tournament || candidate_walker[config.fitness_criterium] > best_walker_in_tournament[config.fitness_criterium]) {
+          best_walker_in_tournament = candidate_walker;
+        }
+      }
+      
+      if (best_walker_in_tournament) {
+        chosen_walker = best_walker_in_tournament;
+        parent_genome_source = chosen_walker.genome;
+        // console.log("Picked from Active Pool (Tournament Winner): " + chosen_walker.name + " Score: " + chosen_walker[config.fitness_criterium]);
+      }
     }
   }
 
-  // Fallback: if no parent genome could be selected (e.g., pools empty at very start or rare race condition)
+  // Fallback: if no parent genome could be selected
   if (!parent_genome_source) {
-    // Create a completely new random genome. We need a temporary walker instance to call its createGenome method.
-    // This is a bit indirect but avoids making createGenome a static/global function directly.
-    var tempWalker = new Walker(globals.world); // This creates a walker with a random genome
+    // console.log("Fallback: Creating random genome");
+    var tempWalker = new Walker(globals.world); 
     parent_genome_source = tempWalker.genome;
-    // Immediately destroy the temp walker bodies as they are not part of the simulation.
     for(var l = 0; l < tempWalker.bodies.length; l++) {
       if(tempWalker.bodies[l]) {
         globals.world.DestroyBody(tempWalker.bodies[l]);
       }
     }
   }
-  return JSON.parse(JSON.stringify(parent_genome_source)); // Return a clone
+  // Return a clone to prevent direct modification of the champion/active walker's genome
+  return JSON.parse(JSON.stringify(parent_genome_source)); 
 }
 
 cloneAndMutate = function(parent_genome) {
