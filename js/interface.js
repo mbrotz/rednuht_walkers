@@ -14,9 +14,10 @@ printNames = function(walkers) {
   name_list.innerHTML = "";
   for(var k = 0; k < walkers.length; k++) {
     var tr = document.createElement("TR");
-    if(walkers[k].is_elite) {
-      tr.className = "elite_name";
-    }
+    // Removed elite_name class:
+    // if(walkers[k].is_elite) {
+    //   tr.className = "elite_name";
+    // }
     var td = document.createElement("TD");
     td.className = "name";
     td.appendChild(document.createTextNode(walkers[k].name));
@@ -35,13 +36,13 @@ printChampion = function(walker) {
   var tr = document.createElement("TR");
 
   var cur_rows = champ_list.getElementsByTagName("TR");
-  if(cur_rows.length >= config.population_size) {
+  if(cur_rows.length >= config.population_size * 2) { // Allow more history for continuous mode
     champ_list.removeChild(cur_rows[0]);
   }
 
   var td = document.createElement("TD");
-  td.className = "generation";
-  td.appendChild(document.createTextNode(globals.generation_count));
+  td.className = "generation"; // Class name kept for styling, content changed
+  td.appendChild(document.createTextNode(walker.id)); // Use walker.id instead of generation_count
   tr.appendChild(td);
 
   td = document.createElement("TD");
@@ -57,7 +58,8 @@ printChampion = function(walker) {
   champ_list.appendChild(tr);
 }
 
-updateGeneration = function(number) {
+updateWalkerTotalCount = function(number) { // Renamed from updateGeneration
+  // Assuming HTML "gen_number" id is now for total walkers created
   document.getElementById("gen_number").innerHTML = number;
 }
 
@@ -81,16 +83,20 @@ interfaceSetup = function() {
     }
   }
 
-  var elite_clones_sel = document.getElementById("elite_clones");
-  for(var k = 0; k <= config.population_size; k++) {
-    var option = document.createElement("OPTION");
-    option.value = k;
-    option.label = k;
-    if(k == config.elite_clones) {
-      option.selected = true;
-    }
-    elite_clones_sel.appendChild(option);
-  }
+  // Removed elite_clones_sel setup
+  // var elite_clones_sel = document.getElementById("elite_clones");
+  // if (elite_clones_sel) { // Check if element exists if HTML might not be updated yet
+  //   for(var k = 0; k <= config.population_size; k++) {
+  //     var option = document.createElement("OPTION");
+  //     option.value = k;
+  //     option.label = k;
+  //     if(k == config.elite_clones) { // config.elite_clones removed
+  //       option.selected = true;
+  //     }
+  //     elite_clones_sel.appendChild(option);
+  //   }
+  // }
+
 
   var motor_noise_sel = document.getElementById("motor_noise");
   for(var k = 0; k < motor_noise_sel.options.length; k++) {
@@ -103,17 +109,20 @@ interfaceSetup = function() {
     config.motor_noise = parseFloat(motor_noise_sel.value);
   }
 
-  var round_length_sel = document.getElementById("round_length");
-  for(var k = 0; k <= round_length_sel.options.length; k++) {
-    if(round_length_sel.options[k].value == config.round_length) {
-      round_length_sel.options[k].selected = true;
-      break;
-    }
-  }
+  // Removed round_length_sel setup
+  // var round_length_sel = document.getElementById("round_length");
+  // if (round_length_sel) { // Check if element exists
+  //   for(var k = 0; k <= round_length_sel.options.length; k++) { // Original loop condition was likely error-prone
+  //       if(round_length_sel.options[k] && round_length_sel.options[k].value == config.round_length) { // config.round_length removed
+  //         round_length_sel.options[k].selected = true;
+  //         break;
+  //       }
+  //   }
+  //   round_length_sel.onchange = function() {
+  //     // config.round_length = round_length_sel.value; // config.round_length removed
+  //   }
+  // }
 
-  round_length_sel.onchange = function() {
-    config.round_length = round_length_sel.value;
-  }
 
   var fps_sel = document.getElementById("draw_fps");
   for(var k = 0; k < fps_sel.options.length; k++) {
@@ -138,5 +147,6 @@ interfaceSetup = function() {
   simulation_fps_sel.onchange = function() {
     setSimulationFps(simulation_fps_sel.value);
   }
-
+  // NOTE: UI for champion_pool_size and parent_from_champion_chance is not added here,
+  // but could be if corresponding <select> elements were added to index.html
 }

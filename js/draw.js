@@ -32,7 +32,8 @@ drawFrame = function() {
   globals.ctx.scale(globals.zoom, -globals.zoom);
   drawFloor();
   for(var k = config.population_size - 1; k >= 0 ; k--) {
-    if(globals.walkers[k].health > 0) {
+    // Ensure walker exists and has health, critical for continuous replacement
+    if(globals.walkers[k] && globals.walkers[k].health > 0) {
       drawWalker(globals.walkers[k]);
     }
   }
@@ -52,17 +53,22 @@ drawFloor = function() {
 }
 
 drawWalker = function(walker) {
-  if(walker.is_elite) {
-    //globals.ctx.strokeStyle = "hsl(22,"+100*walker.health/config.walker_health+"%,35%)";
-//     globals.ctx.fillStyle = "hsl(20,"+45*walker.health/config.walker_health+"%,85%)";
-    globals.ctx.strokeStyle = "hsl(22,100%,"+(90-55*walker.health/config.walker_health)+"%)";
-    globals.ctx.fillStyle = "hsl(20,45%,"+(100-15*walker.health/config.walker_health)+"%)";
-  } else {
-    //globals.ctx.strokeStyle = "hsl(240,"+100*walker.health/config.walker_health+"%,41%)";
-//     globals.ctx.fillStyle = "hsl(240,"+17*walker.health/config.walker_health+"%,85%)";
-    globals.ctx.strokeStyle = "hsl(240,100%,"+(90-49*walker.health/config.walker_health)+"%)";
-    globals.ctx.fillStyle = "hsl(240,45%,"+(100-15*walker.health/config.walker_health)+"%)";
-  }
+  // Removed is_elite check for styling
+  // Styling based on health remains
+  // Original:
+  // if(walker.is_elite) {
+  //   globals.ctx.strokeStyle = "hsl(22,100%,"+(90-55*walker.health/config.walker_health)+"%)";
+  //   globals.ctx.fillStyle = "hsl(20,45%,"+(100-15*walker.health/config.walker_health)+"%)";
+  // } else {
+  //   globals.ctx.strokeStyle = "hsl(240,100%,"+(90-49*walker.health/config.walker_health)+"%)";
+  //   globals.ctx.fillStyle = "hsl(240,45%,"+(100-15*walker.health/config.walker_health)+"%)";
+  // }
+
+  // Simplified styling: Use one color scheme, health-dependent
+  // Using the "non-elite" colors as the base
+  globals.ctx.strokeStyle = "hsl(240,100%,"+(90-49*walker.health/config.walker_health)+"%)";
+  globals.ctx.fillStyle = "hsl(240,45%,"+(100-15*walker.health/config.walker_health)+"%)";
+
   globals.ctx.lineWidth = 1/globals.zoom;
 
   // left legs and arms first
@@ -125,7 +131,7 @@ getMinMaxDistance = function() {
   var min_y = 9999;
   var max_y = -1;
   for(var k = 0; k < globals.walkers.length; k++) {
-    if(globals.walkers[k].health > 0) {
+    if(globals.walkers[k] && globals.walkers[k].health > 0) { // Check if walker exists
       var dist = globals.walkers[k].torso.upper_torso.GetPosition();
       min_x = Math.min(min_x, dist.x);
       max_x = Math.max(max_x, dist.x);
@@ -133,12 +139,18 @@ getMinMaxDistance = function() {
       max_y = Math.max(max_y, dist.y);
     }
   }
+  // Handle case where no walkers are active (e.g., very start or if all die simultaneously)
+  if (max_x === -1) {
+    min_x = 0; max_x = 1; min_y = 0; max_y = 1;
+  }
   return {min_x:min_x, max_x:max_x, min_y:min_y, max_y:max_y};
 }
 
 getZoom = function(min_x, max_x, min_y, max_y) {
   var delta_x = Math.abs(max_x - min_x);
   var delta_y = Math.abs(max_y - min_y);
+  if (delta_x === 0) delta_x = 1; // Prevent division by zero
+  if (delta_y === 0) delta_y = 1; // Prevent division by zero
   var zoom = Math.min(globals.main_screen.width/delta_x,globals.main_screen.height/delta_y);
   return zoom;
 }
