@@ -39,12 +39,10 @@
       <h1>Genetic Algorithm Walkers - Continuous Evolution</h1>
       <h3 id="page_quote">"It's like watching other people QWOP"</h3>
       <canvas id="main_screen" width="800" height="350"></canvas>
-      <!-- Removed generation_timer div -->
 
       <div id="info">
 
         <div>
-          <!-- Changed title for generation number -->
           <h2>Active Population / Total Created: <span id="gen_number">0</span></h2>
           <table class="name_list_table">
             <thead>
@@ -63,7 +61,7 @@
           <table class="name_list_table">
             <thead>
               <tr>
-                <th>Walker ID</th> <!-- Changed from Gen -->
+                <th>Walker ID</th>
                 <th>Name</th>
                 <th>Score</th>
               </tr>
@@ -80,7 +78,7 @@
             <option value="0">0%</option>
             <option value="0.01">1%</option>
             <option value="0.05">5%</option>
-            <option value="0.1" selected>10%</option> <!-- Default selected for convenience -->
+            <option value="0.1" selected>10%</option>
             <option value="0.25">25%</option>
             <option value="0.5">50%</option>
             <option value="0.75">75%</option>
@@ -93,11 +91,10 @@
             <option value="0.05">5%</option>
             <option value="0.1">10%</option>
             <option value="0.25">25%</option>
-            <option value="0.5" selected>50%</option> <!-- Default selected -->
+            <option value="0.5" selected>50%</option>
             <option value="0.75">75%</option>
             <option value="1">100%</option>
           </select><br />
-          <!-- Removed Champions to copy (elite_clones) -->
           Motor noise
           <select id="motor_noise">
             <option value="0">0%</option>
@@ -105,22 +102,51 @@
             <option value="0.02">2%</option>
             <option value="0.03">3%</option>
             <option value="0.04">4%</option>
-            <option value="0.05" selected>5%</option> <!-- Default selected -->
+            <option value="0.05" selected>5%</option>
             <option value="0.1">10%</option>
           </select><br />
-          <!-- Removed Round length -->
+          Selection Pressure (Active Pool)
+          <select id="selection_pressure">
+            <option value="1">1 (Random)</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+          </select><br />
+          Parent from Champion Chance
+          <select id="parent_from_champion_chance">
+            <option value="0">0%</option>
+            <option value="0.1">10%</option>
+            <option value="0.2">20%</option>
+            <option value="0.3" selected>30%</option>
+            <option value="0.4">40%</option>
+            <option value="0.5">50%</option>
+            <option value="0.75">75%</option>
+            <option value="1">100%</option>
+          </select><br />
+          Champion Pool Size
+          <select id="champion_pool_size">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+          </select><br />
           Animation quality
           <select id="draw_fps">
             <option value="0">none</option>
             <option value="10">10 fps</option>
             <option value="30">30 fps</option>
-            <option value="60" selected>60 fps</option> <!-- Default selected -->
+            <option value="60" selected>60 fps</option>
           </select><br />
           Simulation speed
           <select id="simulation_fps">
             <option value="0">Pause</option>
             <option value="30">30</option>
-            <option value="60" selected>60</option> <!-- Default selected -->
+            <option value="60" selected>60</option>
             <option value="120">120</option>
             <option value="1000">1000</option>
           </select><br />

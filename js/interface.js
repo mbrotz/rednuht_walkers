@@ -14,10 +14,6 @@ printNames = function(walkers) {
   name_list.innerHTML = "";
   for(var k = 0; k < walkers.length; k++) {
     var tr = document.createElement("TR");
-    // Removed elite_name class:
-    // if(walkers[k].is_elite) {
-    //   tr.className = "elite_name";
-    // }
     var td = document.createElement("TD");
     td.className = "name";
     td.appendChild(document.createTextNode(walkers[k].name));
@@ -36,13 +32,13 @@ printChampion = function(walker) {
   var tr = document.createElement("TR");
 
   var cur_rows = champ_list.getElementsByTagName("TR");
-  if(cur_rows.length >= config.population_size * 2) { // Allow more history for continuous mode
+  if(cur_rows.length >= config.population_size * 2) { 
     champ_list.removeChild(cur_rows[0]);
   }
 
   var td = document.createElement("TD");
-  td.className = "generation"; // Class name kept for styling, content changed
-  td.appendChild(document.createTextNode(walker.id)); // Use walker.id instead of generation_count
+  td.className = "generation"; 
+  td.appendChild(document.createTextNode(walker.id)); 
   tr.appendChild(td);
 
   td = document.createElement("TD");
@@ -58,8 +54,7 @@ printChampion = function(walker) {
   champ_list.appendChild(tr);
 }
 
-updateWalkerTotalCount = function(number) { // Renamed from updateGeneration
-  // Assuming HTML "gen_number" id is now for total walkers created
+updateWalkerTotalCount = function(number) { 
   document.getElementById("gen_number").innerHTML = number;
 }
 
@@ -67,86 +62,60 @@ setQuote = function() {
   document.getElementById("page_quote").innerHTML = '"'+quotes[Math.floor(Math.random() * quotes.length)]+'"';
 }
 
+// Helper function to set up a select element
+function setupSelectControl(elementId, configProperty, isFloat) {
+    var selectElement = document.getElementById(elementId);
+    if (selectElement) {
+        for (var k = 0; k < selectElement.options.length; k++) {
+            var optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
+            var configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
+             // Use a small epsilon for float comparison due to potential precision issues
+            if (isFloat ? Math.abs(optionValue - configValue) < 0.0001 : optionValue === configValue) {
+                selectElement.options[k].selected = true;
+                break;
+            }
+        }
+        selectElement.onchange = function() {
+            config[configProperty] = isFloat ? parseFloat(this.value) : parseInt(this.value);
+            // If a central `getInterfaceValues()` is called on major events, this direct update might be sufficient.
+            // Otherwise, `getInterfaceValues()` would need to be called or this logic duplicated there.
+        };
+    }
+}
+
+
 interfaceSetup = function() {
-  var mut_chance_sel = document.getElementById("mutation_chance");
-  for(var k = 0; k < mut_chance_sel.options.length; k++) {
-    if(mut_chance_sel.options[k].value == config.mutation_chance) {
-      mut_chance_sel.options[k].selected = true;
-      break;
-    }
-  }
-  var mut_amount_sel = document.getElementById("mutation_amount");
-  for(var k = 0; k < mut_amount_sel.options.length; k++) {
-    if(mut_amount_sel.options[k].value == config.mutation_amount) {
-      mut_amount_sel.options[k].selected = true;
-      break;
-    }
-  }
-
-  // Removed elite_clones_sel setup
-  // var elite_clones_sel = document.getElementById("elite_clones");
-  // if (elite_clones_sel) { // Check if element exists if HTML might not be updated yet
-  //   for(var k = 0; k <= config.population_size; k++) {
-  //     var option = document.createElement("OPTION");
-  //     option.value = k;
-  //     option.label = k;
-  //     if(k == config.elite_clones) { // config.elite_clones removed
-  //       option.selected = true;
-  //     }
-  //     elite_clones_sel.appendChild(option);
-  //   }
-  // }
-
-
-  var motor_noise_sel = document.getElementById("motor_noise");
-  for(var k = 0; k < motor_noise_sel.options.length; k++) {
-    if(motor_noise_sel.options[k].value == config.motor_noise) {
-      motor_noise_sel.options[k].selected = true;
-      break;
-    }
-  }
-  motor_noise_sel.onchange = function() {
-    config.motor_noise = parseFloat(motor_noise_sel.value);
-  }
-
-  // Removed round_length_sel setup
-  // var round_length_sel = document.getElementById("round_length");
-  // if (round_length_sel) { // Check if element exists
-  //   for(var k = 0; k <= round_length_sel.options.length; k++) { // Original loop condition was likely error-prone
-  //       if(round_length_sel.options[k] && round_length_sel.options[k].value == config.round_length) { // config.round_length removed
-  //         round_length_sel.options[k].selected = true;
-  //         break;
-  //       }
-  //   }
-  //   round_length_sel.onchange = function() {
-  //     // config.round_length = round_length_sel.value; // config.round_length removed
-  //   }
-  // }
-
-
+  setupSelectControl("mutation_chance", "mutation_chance", true);
+  setupSelectControl("mutation_amount", "mutation_amount", true);
+  setupSelectControl("motor_noise", "motor_noise", true);
+  setupSelectControl("selection_pressure", "selection_pressure", false);
+  setupSelectControl("parent_from_champion_chance", "parent_from_champion_chance", true);
+  setupSelectControl("champion_pool_size", "champion_pool_size", false);
+  
+  // FPS and Simulation Speed have special setter functions
   var fps_sel = document.getElementById("draw_fps");
-  for(var k = 0; k < fps_sel.options.length; k++) {
-    if(fps_sel.options[k].value == config.draw_fps) {
-      fps_sel.options[k].selected = true;
-      break;
-    }
-  }
-
-  fps_sel.onchange = function() {
-    setFps(fps_sel.value);
+  if (fps_sel) {
+      for(var k = 0; k < fps_sel.options.length; k++) {
+          if(fps_sel.options[k].value == config.draw_fps) {
+              fps_sel.options[k].selected = true;
+              break;
+          }
+      }
+      fps_sel.onchange = function() {
+          setFps(parseInt(this.value)); // Ensure FPS is int
+      }
   }
 
   var simulation_fps_sel = document.getElementById("simulation_fps");
-  for(var k = 0; k < simulation_fps_sel.options.length; k++) {
-    if(simulation_fps_sel.options[k].value == config.simulation_fps) {
-      simulation_fps_sel.options[k].selected = true;
-      break;
-    }
+  if (simulation_fps_sel) {
+      for(var k = 0; k < simulation_fps_sel.options.length; k++) {
+          if(simulation_fps_sel.options[k].value == config.simulation_fps) {
+              simulation_fps_sel.options[k].selected = true;
+              break;
+          }
+      }
+      simulation_fps_sel.onchange = function() {
+          setSimulationFps(parseInt(this.value)); // Ensure FPS is int
+      }
   }
-
-  simulation_fps_sel.onchange = function() {
-    setSimulationFps(simulation_fps_sel.value);
-  }
-  // NOTE: UI for champion_pool_size and parent_from_champion_chance is not added here,
-  // but could be if corresponding <select> elements were added to index.html
 }

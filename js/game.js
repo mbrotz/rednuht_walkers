@@ -20,7 +20,7 @@ config = {
   population_size: 40,
   champion_pool_size: 5, // Number of recent champions to keep
   parent_from_champion_chance: 0.5, // Probability to pick parent from champion pool
-  parent_from_population_selection_pressure: 2,
+  selection_pressure: 2,
 };
 
 globals = {};
@@ -101,7 +101,8 @@ populationSimulationStep = function() {
 
           // Add genome to champion pool
           globals.champion_genomes.push(JSON.parse(JSON.stringify(globals.walkers[k].genome)));
-          if(globals.champion_genomes.length > config.champion_pool_size) {
+          // Ensure the champion pool is trimmed to the configured size
+          while(globals.champion_genomes.length > config.champion_pool_size) {
             globals.champion_genomes.shift(); // Remove oldest champion genome
           }
         }
@@ -158,7 +159,7 @@ pickParentGenome = function() {
     if (living_walkers_indices.length > 0) {
       var best_walker_in_tournament = null;
 
-      for (var s = 0; s < config.parent_from_population_selection_pressure; s++) {
+      for (var s = 0; s < config.selection_pressure; s++) {
         // Pick a random living walker for the tournament
         var random_living_index_in_array = Math.floor(Math.random() * living_walkers_indices.length);
         var candidate_walker_index = living_walkers_indices[random_living_index_in_array];
