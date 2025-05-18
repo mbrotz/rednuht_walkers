@@ -58,12 +58,21 @@ printChampion = function(walker) {
   tdScore.appendChild(document.createTextNode(walker[config.fitness_criterium].toFixed(2)));
   tr.appendChild(tdScore);
 
-  champ_list.appendChild(tr); 
-
-  while (champ_list.rows.length > config.population_size) { 
-    champ_list.removeChild(champ_list.rows[0]); 
+  // Insert new champion at the top of the list
+  if (champ_list.firstChild) {
+    champ_list.insertBefore(tr, champ_list.firstChild);
+  } else {
+    champ_list.appendChild(tr);
   }
-  setQuote(); 
+
+  // Remove oldest entries if list is too long
+  // config.population_size was used here, but it should probably be a different limit,
+  // or use config.champion_pool_size for the visual list too, if desired.
+  // For now, let's assume we want to display up to config.population_size champions in the UI list.
+  while (champ_list.rows.length > config.population_size) { 
+    champ_list.removeChild(champ_list.rows[champ_list.rows.length - 1]); // Remove the last row (oldest entry at bottom)
+  }
+  // setQuote(); // This is still fine here if you want quote to change with champions
 }
 
 updateWalkerTotalCount = function(number) { 
@@ -71,76 +80,79 @@ updateWalkerTotalCount = function(number) {
 }
 
 updatePoolStatsDisplay = function() {
-    var champPoolSizeEl = document.getElementById("champ_pool_size_display");
-    var champPoolAvgScoreEl = document.getElementById("champ_pool_avg_score_display");
-    var driftPoolSizeEl = document.getElementById("drift_pool_size_display");
-    var driftPoolAvgScoreEl = document.getElementById("drift_pool_avg_score_display");
+  var champPoolSizeEl = document.getElementById("champ_pool_size_display");
+  var champPoolAvgScoreEl = document.getElementById("champ_pool_avg_score_display");
+  var driftPoolSizeEl = document.getElementById("drift_pool_size_display");
+  var driftPoolAvgScoreEl = document.getElementById("drift_pool_avg_score_display");
 
-    var champPoolSize = globals.champion_genomes.length;
-    var champTotalScore = 0;
-    for (var i = 0; i < champPoolSize; i++) {
-        champTotalScore += globals.champion_genomes[i].score;
-    }
-    var champAvgScore = champPoolSize > 0 ? (champTotalScore / champPoolSize) : 0;
+  var champPoolSize = globals.champion_genomes.length;
+  var champTotalScore = 0;
+  for (var i = 0; i < champPoolSize; i++) {
+    champTotalScore += globals.champion_genomes[i].score;
+  }
+  var champAvgScore = champPoolSize > 0 ? (champTotalScore / champPoolSize) : 0;
 
-    var driftPoolSize = globals.drift_genomes.length;
-    var driftTotalScore = 0;
-    for (var i = 0; i < driftPoolSize; i++) {
-        driftTotalScore += globals.drift_genomes[i].score;
-    }
-    var driftAvgScore = driftPoolSize > 0 ? (driftTotalScore / driftPoolSize) : 0;
+  var driftPoolSize = globals.drift_genomes.length;
+  var driftTotalScore = 0;
+  for (var i = 0; i < driftPoolSize; i++) {
+    driftTotalScore += globals.drift_genomes[i].score;
+  }
+  var driftAvgScore = driftPoolSize > 0 ? (driftTotalScore / driftPoolSize) : 0;
 
-    if (champPoolSizeEl) champPoolSizeEl.innerHTML = champPoolSize;
-    if (champPoolAvgScoreEl) champPoolAvgScoreEl.innerHTML = champAvgScore.toFixed(2);
-    if (driftPoolSizeEl) driftPoolSizeEl.innerHTML = driftPoolSize;
-    if (driftPoolAvgScoreEl) driftPoolAvgScoreEl.innerHTML = driftAvgScore.toFixed(2);
+  if (champPoolSizeEl) champPoolSizeEl.innerHTML = champPoolSize;
+  if (champPoolAvgScoreEl) champPoolAvgScoreEl.innerHTML = champAvgScore.toFixed(2);
+  if (driftPoolSizeEl) driftPoolSizeEl.innerHTML = driftPoolSize;
+  if (driftPoolAvgScoreEl) driftPoolAvgScoreEl.innerHTML = driftAvgScore.toFixed(2);
 }
 
 setQuote = function() {
-  document.getElementById("page_quote").innerHTML = '"'+quotes[Math.floor(Math.random() * quotes.length)]+'"';
+  var quoteEl = document.getElementById("page_quote");
+  if (quoteEl) { // Check if element exists
+    quoteEl.innerHTML = '"'+quotes[Math.floor(Math.random() * quotes.length)]+'"';
+  }
 }
 
 // Helper function to set up a select element
 function setupSelectControl(elementId, configProperty, isFloat) {
-    var selectElement = document.getElementById(elementId);
-    if (selectElement) {
-        for (var k = 0; k < selectElement.options.length; k++) {
-            var optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
-            var configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
-            if (isFloat ? Math.abs(optionValue - configValue) < 0.0001 : optionValue === configValue) {
-                selectElement.options[k].selected = true;
-                break;
-            }
-        }
-        selectElement.onchange = function() {
-            var newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
-            config[configProperty] = newValue;
-
-            var poolsMayHaveChanged = false;
-            if (configProperty === "champion_pool_size") {
-                while (globals.champion_genomes && globals.champion_genomes.length > newValue) {
-                    globals.champion_genomes.shift(); 
-                    poolsMayHaveChanged = true;
-                }
-            } else if (configProperty === "drift_pool_size") {
-                while (globals.drift_genomes && globals.drift_genomes.length > newValue) {
-                    globals.drift_genomes.shift();
-                    poolsMayHaveChanged = true;
-                }
-            }
-            if (poolsMayHaveChanged) {
-                updatePoolStatsDisplay(); // Update display if pool sizes were programmatically changed
-            }
-        };
+  var selectElement = document.getElementById(elementId);
+  if (selectElement) {
+    for (var k = 0; k < selectElement.options.length; k++) {
+      var optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
+      var configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
+      if (isFloat ? Math.abs(optionValue - configValue) < 0.0001 : optionValue === configValue) {
+        selectElement.options[k].selected = true;
+        break;
+      }
     }
-}
+    selectElement.onchange = function() {
+      var newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
+      config[configProperty] = newValue;
+
+      var poolsMayHaveChanged = false;
+      if (configProperty === "champion_pool_size") {
+        while (globals.champion_genomes && globals.champion_genomes.length > newValue) {
+                    globals.champion_genomes.pop(); // Remove from end since new ones are added to front
+                    poolsMayHaveChanged = true;
+                  }
+                } else if (configProperty === "drift_pool_size") {
+                  while (globals.drift_genomes && globals.drift_genomes.length > newValue) {
+                    globals.drift_genomes.pop(); // Remove from end
+                    poolsMayHaveChanged = true;
+                  }
+                }
+                if (poolsMayHaveChanged) {
+                  updatePoolStatsDisplay(); 
+                }
+              };
+            }
+          }
 
 
-interfaceSetup = function() {
-  setupSelectControl("mutation_chance", "mutation_chance", true);
-  setupSelectControl("mutation_amount", "mutation_amount", true);
-  setupSelectControl("motor_noise", "motor_noise", true);
-  setupSelectControl("selection_pressure", "selection_pressure", false);
+          interfaceSetup = function() {
+            setupSelectControl("mutation_chance", "mutation_chance", true);
+            setupSelectControl("mutation_amount", "mutation_amount", true);
+            setupSelectControl("motor_noise", "motor_noise", true);
+  setupSelectControl("population_selection_pressure", "population_selection_pressure", false); // Renamed ID & property
   
   setupSelectControl("parent_from_population_chance", "parent_from_population_chance", true);
   setupSelectControl("parent_from_champion_pool_chance", "parent_from_champion_pool_chance", true);
@@ -151,27 +163,27 @@ interfaceSetup = function() {
   
   var fps_sel = document.getElementById("draw_fps");
   if (fps_sel) {
-      for(var k = 0; k < fps_sel.options.length; k++) {
-          if(fps_sel.options[k].value == config.draw_fps) {
-              fps_sel.options[k].selected = true;
-              break;
-          }
+    for(var k = 0; k < fps_sel.options.length; k++) {
+      if(fps_sel.options[k].value == config.draw_fps) {
+        fps_sel.options[k].selected = true;
+        break;
       }
-      fps_sel.onchange = function() {
-          setFps(parseInt(this.value)); 
-      }
+    }
+    fps_sel.onchange = function() {
+      setFps(parseInt(this.value)); 
+    }
   }
 
   var simulation_fps_sel = document.getElementById("simulation_fps");
   if (simulation_fps_sel) {
-      for(var k = 0; k < simulation_fps_sel.options.length; k++) {
-          if(simulation_fps_sel.options[k].value == config.simulation_fps) {
-              simulation_fps_sel.options[k].selected = true;
-              break;
-          }
+    for(var k = 0; k < simulation_fps_sel.options.length; k++) {
+      if(simulation_fps_sel.options[k].value == config.simulation_fps) {
+        simulation_fps_sel.options[k].selected = true;
+        break;
       }
-      simulation_fps_sel.onchange = function() {
-          setSimulationFps(parseInt(this.value)); 
-      }
+    }
+    simulation_fps_sel.onchange = function() {
+      setSimulationFps(parseInt(this.value)); 
+    }
   }
 }

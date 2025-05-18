@@ -297,7 +297,7 @@ Walker.prototype.getBodies = function() {
 Walker.prototype.createGenome = function(joints, bodies) { 
   var genome = [];
   var num_motorized_joints = this.joints.length; 
-                                                
+  
   for(var k = 0; k < num_motorized_joints; k++) {
     var gene = {}; 
     gene.cos_factor = 6*Math.random() - 3; 
@@ -353,7 +353,7 @@ Walker.prototype.simulationStep = function(motor_noise) {
     }
   }
   if (this.torso.upper_torso.GetPosition().y < -1) { 
-      this.health = 0;
+    this.health = 0;
   }
 
   this.local_step_counter++;
@@ -414,9 +414,9 @@ Walker.prototype.makeName = function(genome) {
 
   var species_offset = Math.floor(genome.length / 3);
   if (genome.length <= 2 && genome.length > 0) { 
-      species_offset = 1;
+    species_offset = 1;
   } else if (genome.length === 0) { 
-      species_offset = 0;
+    species_offset = 0;
   }
 
   var species_name = generateNamePart(genome, species_length, false, species_offset);

@@ -1,383 +1,262 @@
 <!doctype html>
 <html>
-  <head>
-    <title>HTML5 Genetic Algorithm Biped Walkers - Continuous</title>
-    <link rel="stylesheet" href="css/walkers.css" type="text/css" />
-    <script src="js/jsbox2d.min.js"></script>
-    <script src="js/walker.js"></script>
-    <script src="js/game.js"></script>
-    <script src="js/floor.js"></script>
-    <script src="js/draw.js"></script>
-    <script src="js/interface.js"></script>
-    <script>
+<head>
+  <title>HTML5 Genetic Algorithm Biped Walkers</title>
+  <link rel="stylesheet" href="css/walkers.css" type="text/css" />
+  <script src="js/jsbox2d.min.js"></script>
+  <script src="js/walker.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/floor.js"></script>
+  <script src="js/draw.js"></script>
+  <script src="js/interface.js"></script>
+  <script>
+    function init() {
+      gameInit();
+    }
+    window.addEventListener("load", init, false);
+  </script>
+</head>
+<body>
+  <div id="main_holder">
+    <header style="text-align: center;">
+      <h1>Genetic Algorithm Walkers</h1>
+      <h3 id="page_quote"></h3>
+    </header>
 
-      function init() {
-        gameInit();
-      }
-
-      window.addEventListener("load", init, false);
-
-    </script>
-
-<script type="text/javascript">
-
-  var _gaq = _gaq || [];
-  _gaq.push(['_setAccount', 'UA-25432661-3']);
-  _gaq.push(['_trackPageview']);
-
-  (function() {
-    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-  })();
-
-</script>
-    <style>
-      body {
-        font-family: sans-serif; /* A common base font */
-      }
-      #main_holder {
-        max-width: 1000px; /* Increased width to accommodate 3 columns */
-        margin: 0 auto;
-        padding: 10px;
-      }
-      #simulation_area {
-        text-align: center; 
-        margin-bottom: 20px;
-      }
-      #info_and_controls_container {
-        display: flex;
-        flex-wrap: wrap; 
-        gap: 20px; /* Consistent gap between all items */
-        margin-bottom: 20px;
-      }
-      .info_panel { /* Renamed from info_column for clarity */
-        flex: 1; /* Each info panel tries to take equal space */
-        min-width: 250px; /* Min width before wrapping */
-        padding: 10px;
-        border: 1px solid #eee;
-        border-radius: 5px;
-        background-color: #f9f9f9;
-      }
-      .info_panel h2 {
-          margin-top: 0;
-          text-align: center;
-          font-size: 1.2em;
-      }
-      .controls_panel { /* Renamed from controls_column */
-        flex: 1.2; /* Controls might need a bit more relative space */
-        min-width: 280px; /* Min width before wrapping */
-        padding: 10px;
-        border: 1px solid #eee;
-        border-radius: 5px;
-        background-color: #f9f9f9;
-      }
-       .controls_panel h2 {
-          margin-top: 0;
-          text-align: center;
-          font-size: 1.2em;
-      }
-      .control_group {
-        margin-bottom: 12px;
-      }
-      .control_group label {
-        display: block;
-        margin-bottom: 4px;
-        font-weight: normal; /* Less heavy labels */
-        font-size: 0.9em;
-      }
-      .control_group select {
-        width: 100%; 
-        padding: 6px;
-        box-sizing: border-box; 
-        border: 1px solid #ccc;
-        border-radius: 3px;
-      }
-      #stats_display_area { /* Renamed from total_created_counter_display for clarity */
-          text-align: center;
-          font-size: 1.0em; /* Adjusted font size for more text */
-          margin-top: 15px;
-          margin-bottom: 20px;
-          color: #333;
-          display: flex; /* Use flexbox for better alignment */
-          flex-wrap: wrap; /* Allow wrapping on smaller screens */
-          justify-content: center; /* Center items */
-          gap: 10px; /* Space between items */
-      }
-      .stat_item { /* Class for individual stat items */
-        padding: 3px 8px;
-        background-color: #f0f0f0;
-        border-radius: 3px;
-      }
-      #about_section_container {
-          clear: both; 
-          padding: 20px;
-          border-top: 1px solid #ddd;
-          margin-top: 20px;
-          background-color: #fdfdfd;
-      }
-      #about_section_container h2 {
-          text-align: center;
-          margin-bottom: 20px;
-      }
-      /* Table styling from original walkers.css might need to be adjusted or overridden */
-      .name_list_table {
-          width: 100%;
-          border-collapse: collapse;
-      }
-      .name_list_table th, .name_list_table td {
-          border: 1px solid #ddd;
-          padding: 6px;
-          text-align: left;
-          font-size: 0.9em;
-      }
-      .name_list_table th {
-          background-color: #f0f0f0;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="main_holder">
-      <header style="text-align: center;">
-        <h1>Genetic Algorithm Walkers - Continuous Evolution</h1>
-        <h3 id="page_quote">"It's like watching other people QWOP"</h3>
-      </header>
-
-      <div id="simulation_area">
-        <canvas id="main_screen" width="800" height="350"></canvas>
-      </div>
-
-      <div id="stats_display_area">
-        <span class="stat_item">Total Walkers: <span id="gen_number">0</span></span>
-        <span class="stat_item">Champion Pool: <span id="champ_pool_size_display">0</span> (<span id="champ_pool_avg_score_display">0.00</span> avg)</span>
-        <span class="stat_item">Drift Pool: <span id="drift_pool_size_display">0</span> (<span id="drift_pool_avg_score_display">0.00</span> avg)</span>
-      </div>
-
-      <div id="info_and_controls_container">
-        <div class="info_panel" id="active_population_panel">
-          <h2>Active Population</h2>
-          <table class="name_list_table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Score</th>
-              </tr>
-            </thead>
-            <tbody id="name_list">
-            </tbody>
-          </table>
-        </div>
-
-        <div class="info_panel" id="record_history_panel">
-          <h2>Record History</h2>
-          <table class="name_list_table">
-            <thead>
-              <tr>
-                <th>Walker ID</th>
-                <th>Name</th>
-                <th>Score</th>
-              </tr>
-            </thead>
-            <tbody id="champ_list">
-            </tbody>
-          </table>
-        </div>
-
-        <div class="controls_panel" id="controls_settings_panel">
-          <h2>Controls</h2>
-          <div class="control_group">
-            <label for="mutation_chance">Gene Mutation Probability</label>
-            <select id="mutation_chance">
-              <option value="0">0%</option>
-              <option value="0.01">1%</option>
-              <option value="0.05">5%</option>
-              <option value="0.1" selected>10%</option>
-              <option value="0.25">25%</option>
-              <option value="0.5">50%</option>
-              <option value="0.75">75%</option>
-              <option value="1">100%</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="mutation_amount">Gene Mutation Amount</label>
-            <select id="mutation_amount">
-              <option value="0">0%</option>
-              <option value="0.01">1%</option>
-              <option value="0.05">5%</option>
-              <option value="0.1">10%</option>
-              <option value="0.25">25%</option>
-              <option value="0.5" selected>50%</option>
-              <option value="0.75">75%</option>
-              <option value="1">100%</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="motor_noise">Motor Noise</label>
-            <select id="motor_noise">
-              <option value="0">0%</option>
-              <option value="0.01">1%</option>
-              <option value="0.02">2%</option>
-              <option value="0.03">3%</option>
-              <option value="0.04">4%</option>
-              <option value="0.05" selected>5%</option>
-              <option value="0.1">10%</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="selection_pressure">Selection Pressure (Active Pool)</label>
-            <select id="selection_pressure">
-              <option value="1">1 (Random)</option>
-              <option value="2" selected>2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="10">10</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="parent_from_population_chance">Parent from Active Population Chance</label>
-            <select id="parent_from_population_chance">
-              <option value="0">0%</option>
-              <option value="0.1">10%</option>
-              <option value="0.25">25%</option>
-              <option value="0.4">40%</option>
-              <option value="0.5">50%</option>
-              <option value="0.6" selected>60%</option>
-              <option value="0.75">75%</option>
-              <option value="1">100%</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="parent_from_champion_pool_chance">Champion Pool Preference (if from pools)</label>
-            <select id="parent_from_champion_pool_chance">
-              <option value="0">0% (Drift Pool Only)</option>
-              <option value="0.25">25%</option>
-              <option value="0.5">50% (Equal Chance)</option>
-              <option value="0.7" selected>70%</option>
-              <option value="0.75">75%</option>
-              <option value="1">100% (Champion Pool Only)</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="champion_pool_size">Champion Pool Size</label>
-            <select id="champion_pool_size">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="5" selected>5</option>
-              <option value="10">10</option>
-              <option value="15">15</option>
-              <option value="20">20</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="drift_pool_size">Drift Pool Size</label>
-            <select id="drift_pool_size">
-              <option value="0">0 (Disabled)</option>
-              <option value="5">5</option>
-              <option value="10" selected>10</option>
-              <option value="15">15</option>
-              <option value="20">20</option>
-              <option value="30">30</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="drift_range">Drift Range (Threshold for Drift Pool)</label>
-            <select id="drift_range">
-              <option value="0.05">5% (95% of Record)</option>
-              <option value="0.1">10% (90% of Record)</option>
-              <option value="0.15">15% (85% of Record)</option>
-              <option value="0.25" selected>25% (75% of Record)</option>
-              <option value="0.35">35% (65% of Record)</option>
-              <option value="0.5">50% (50% of Record)</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="draw_fps">Animation Quality</label>
-            <select id="draw_fps">
-              <option value="0">None</option>
-              <option value="10">10 FPS</option>
-              <option value="30">30 FPS</option>
-              <option value="60" selected>60 FPS</option>
-            </select>
-          </div>
-          <div class="control_group">
-            <label for="simulation_fps">Simulation Speed</label>
-            <select id="simulation_fps">
-              <option value="0">Pause</option>
-              <option value="30">30 Steps/Sec</option>
-              <option value="60" selected>60 Steps/Sec</option>
-              <option value="120">120 Steps/Sec</option>
-              <option value="1000">1000 Steps/Sec</option>
-            </select>
-          </div>
-          <div class="control_group" style="font-size: 0.85em; color: #555; line-height: 1.3;">
-            Lower animation quality and simulation speed to save CPU. High simulation speed with no animation evolves fastest.
-          </div>
-        </div>
-      </div>
-
-      <div id="about_section_container">
-        <div id="about"> 
-          <h2>About This Simulation</h2>
-          <h4>What the hell is this?</h4>
-          This observational pastime hopes to evolve walking creatures through a continuous genetic algorithm.
-          When a walker "dies", it is immediately replaced by a mutated offspring of a successful recent walker or an active one.
-          <br /><br />
-
-          <h4>Who comes up with these names?</h4>
-          The names are generated based on each creature's genome. Since the genetic algorithm tends to produce
-          creatures with similar genes, two creatures with similar names will have similar traits.
-          The names are in a "Genus species" format, inspired by scientific nomenclature.
-          <br /><br />
-          Sometimes two creatures can have the same name by coincidence, as there are nearly infinite genome
-          possibilities and limited numbers of letters in each name. Much like two people in real life with the same
-          name, that doesn't mean they will behave the same.
-          <br /><br />
-          Apologies in advance for any dirty words spelled by accident. Bad genome. :)
-          <br /><br />
-
-          <h4>How is the score calculated?</h4>
-          In order to promote upright walking, each creature receives points based on how high the head is in
-          relation to its feet, and how much it advances while upright. Bonus points and health are given for each proper
-          step forward.
-          <br /><br />
-
-          <h4>Can I give you riches and wealth?</h4>
-          Yes, but I'll use them to buy coffee.<br />
-          <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
-            <input type="hidden" name="cmd" value="_s-xclick">
-            <input type="hidden" name="hosted_button_id" value="8HTQYLZV8ALMQ">
-            <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
-            <img alt="" border="0" src="https://www.paypalobjects.com/pt_BR/i/scr/pixel.gif" width="1" height="1">
-          </form>
-          <br />
-
-          <h4>Who made this?</h4>
-          This exercise in pointless science is brought to you by <a href="http://rednuht.org">rednuht.org</a> (which
-          is really just one guy). This continuous evolution version was guided by an AI assistant.
-          <br /><br />
-          Physics engine brought to you by the amazing <a href="http://box2d.org/">Erin Catto</a>, I'm using the
-          very nice <a href="https://code.google.com/p/jsbox2d/">JS port by Paril</a>.
-          <br /><br />
-          Additional code by Leif Johnson.
-          <br /><br />
-
-          <h4>It looks broken on my browser!</h4>
-          Your browser broke my toy! Make it pay!
-          <br /><br />
-
-          <h4>I'm a Computer Science snob and your approach to genetic algorithms is flawed.</h4>
-          But it's fun, ain't it? :)
-          <br /><br />
-
-          <h4>I hate boxy humanoids, can I have misshapen cars instead?</h4>
-          <a href="http://rednuht.org/genetic_cars_2/">Glad you asked</a>!
-          <br /><br />
-        </div>
-      </div>
-
+    <div id="simulation_area">
+      <canvas id="main_screen" width="800" height="350"></canvas>
     </div>
-    <img id="hidden_ss" src="screenshot.png" />
-  </body>
+
+    <div id="stats_display_area">
+      <span class="stat_item">Total Walkers: <span id="gen_number">0</span></span>
+      <span class="stat_item">Champion Pool: <span id="champ_pool_size_display">0</span> (<span id="champ_pool_avg_score_display">0.00</span> avg)</span>
+      <span class="stat_item">Drift Pool: <span id="drift_pool_size_display">0</span> (<span id="drift_pool_avg_score_display">0.00</span> avg)</span>
+    </div>
+
+    <div id="info_and_controls_container">
+      <div class="info_panel" id="active_population_panel">
+        <h2>Active Population</h2>
+        <table class="name_list_table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody id="name_list">
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info_panel" id="record_history_panel">
+        <h2>Record History</h2>
+        <table class="name_list_table">
+          <thead>
+            <tr>
+              <th>Walker ID</th>
+              <th>Name</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody id="champ_list">
+          </tbody>
+        </table>
+      </div>
+
+      <div class="controls_panel" id="controls_settings_panel">
+        <h2>Simulation Controls</h2>
+        <div class="control_group">
+          <label for="mutation_chance">Mutation Chance <span class="control_description">- Probability a gene mutates in an offspring.</span></label>
+          <select id="mutation_chance">
+            <option value="0">0%</option>
+            <option value="0.01">1%</option>
+            <option value="0.05">5%</option>
+            <option value="0.1" selected>10%</option>
+            <option value="0.25">25%</option>
+            <option value="0.5">50%</option>
+            <option value="0.75">75%</option>
+            <option value="1">100%</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="mutation_amount">Mutation Strength <span class="control_description">- Max percentage a gene value changes during mutation.</span></label>
+          <select id="mutation_amount">
+            <option value="0">0%</option>
+            <option value="0.01">1%</option>
+            <option value="0.05">5%</option>
+            <option value="0.1">10%</option>
+            <option value="0.25">25%</option>
+            <option value="0.5" selected>50%</option>
+            <option value="0.75">75%</option>
+            <option value="1">100%</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="motor_noise">Motor Instability <span class="control_description">- Random variance applied to motor speeds each step.</span></label>
+          <select id="motor_noise">
+            <option value="0" selected>0%</option>
+            <option value="0.01">1%</option>
+            <option value="0.02">2%</option>
+            <option value="0.03">3%</option>
+            <option value="0.04">4%</option>
+            <option value="0.05">5%</option>
+            <option value="0.1">10%</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="population_selection_pressure">Population Selection Pressure <span class="control_description">- How strongly to favor higher-scoring active walkers.</span></label>
+          <select id="population_selection_pressure">
+            <option value="1">1 (Random)</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="parent_from_population_chance">Active Parent Chance <span class="control_description">- Probability to pick parent from active walkers (vs. pools).</span></label>
+          <select id="parent_from_population_chance">
+            <option value="0">0%</option>
+            <option value="0.1">10%</option>
+            <option value="0.25" selected>25%</option>
+            <option value="0.4">40%</option>
+            <option value="0.5">50%</option>
+            <option value="0.6">60%</option>
+            <option value="0.75">75%</option>
+            <option value="1">100%</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="parent_from_champion_pool_chance">Champion Pool Preference <span class="control_description">- If picking from pools, chance to favor Champion Pool over Drift Pool.</span></label>
+          <select id="parent_from_champion_pool_chance">
+            <option value="0">0% (Drift Only)</option>
+            <option value="0.25" selected>25%</option>
+            <option value="0.5">50% (Equal)</option>
+            <option value="0.7">70%</option>
+            <option value="0.75">75%</option>
+            <option value="1">100% (Champion Only)</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="champion_pool_size">Champion Pool Capacity <span class="control_description">- Max record-holders kept.</span></label>
+          <select id="champion_pool_size">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="drift_pool_size">Drift Pool Capacity <span class="control_description">- Max strong (non-champion) walkers kept.</span></label>
+          <select id="drift_pool_size">
+            <option value="0">0 (Disabled)</option>
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="drift_range">Drift Pool Threshold <span class="control_description">- Min score (% of record) to enter Drift Pool.</span></label>
+          <select id="drift_range">
+            <option value="0.05">5% (95% of Record)</option>
+            <option value="0.1">10% (90% of Record)</option>
+            <option value="0.15">15% (85% of Record)</option>
+            <option value="0.25" selected>25% (75% of Record)</option>
+            <option value="0.35">35% (65% of Record)</option>
+            <option value="0.5">50% (50% of Record)</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="draw_fps">Animation Quality <span class="control_description">- Visual update frequency. Lower saves CPU.</span></label>
+          <select id="draw_fps">
+            <option value="0">None</option>
+            <option value="10">10 FPS</option>
+            <option value="30">30 FPS</option>
+            <option value="60" selected>60 FPS</option>
+          </select>
+        </div>
+        <div class="control_group">
+          <label for="simulation_fps">Simulation Speed <span class="control_description">- Physics steps per second. Higher evolves faster.</span></label>
+          <select id="simulation_fps">
+            <option value="0">Pause</option>
+            <option value="30">30 Steps/Sec</option>
+            <option value="60" selected>60 Steps/Sec</option>
+            <option value="120">120 Steps/Sec</option>
+            <option value="1000">1000 Steps/Sec</option>
+          </select>
+        </div>
+        <div class="control_group" style="font-size: 0.85em; color: #555; line-height: 1.3;">
+          Lower animation quality and simulation speed to save CPU. High simulation speed with no animation evolves fastest.
+        </div>
+      </div>
+    </div>
+
+    <div id="about_section_container">
+      <div id="about"> 
+        <h2>About This Simulation</h2>
+        <h4>What the hell is this?</h4>
+        This observational pastime hopes to evolve walking creatures through a continuous genetic algorithm.
+        When a walker "dies", it is immediately replaced by a mutated offspring of a successful recent walker or an active one.
+        <br /><br />
+
+        <h4>Who comes up with these names?</h4>
+        The names are generated based on each creature's genome. Since the genetic algorithm tends to produce
+        creatures with similar genes, two creatures with similar names will have similar traits.
+        The names are in a "Genus species" format, inspired by scientific nomenclature.
+        <br /><br />
+        Sometimes two creatures can have the same name by coincidence, as there are nearly infinite genome
+        possibilities and limited numbers of letters in each name. Much like two people in real life with the same
+        name, that doesn't mean they will behave the same.
+        <br /><br />
+        Apologies in advance for any dirty words spelled by accident. Bad genome. :)
+        <br /><br />
+
+        <h4>How is the score calculated?</h4>
+        In order to promote upright walking, each creature receives points based on how high the head is in
+        relation to its feet, and how much it advances while upright. Bonus points and health are given for each proper
+        step forward.
+        <br /><br />
+
+        <h4>Can I give you riches and wealth?</h4>
+        Yes, but I'll use them to buy coffee.<br />
+        <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
+          <input type="hidden" name="cmd" value="_s-xclick">
+          <input type="hidden" name="hosted_button_id" value="8HTQYLZV8ALMQ">
+          <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
+          <img alt="" border="0" src="https://www.paypalobjects.com/pt_BR/i/scr/pixel.gif" width="1" height="1">
+        </form>
+        <br />
+
+        <h4>Who made this?</h4>
+        This exercise in pointless science is brought to you by <a href="http://rednuht.org">rednuht.org</a> (which
+        is really just one guy).
+        <br /><br />
+        Physics engine brought to you by the amazing <a href="http://box2d.org/">Erin Catto</a>, I'm using the
+        very nice <a href="https://code.google.com/p/jsbox2d/">JS port by Paril</a>.
+        <br /><br />
+        Additional code by Leif Johnson.
+        <br /><br />
+
+        <h4>It looks broken on my browser!</h4>
+        Your browser broke my toy! Make it pay!
+        <br /><br />
+
+        <h4>I'm a Computer Science snob and your approach to genetic algorithms is flawed.</h4>
+        But it's fun, ain't it? :)
+        <br /><br />
+
+        <h4>I hate boxy humanoids, can I have misshapen cars instead?</h4>
+        <a href="http://rednuht.org/genetic_cars_2/">Glad you asked</a>!
+        <br /><br />
+      </div>
+    </div>
+
+  </div>
+</body>
 </html>
