@@ -38,6 +38,8 @@ gameInit = function() {
 
   globals.floor = createFloor();
   drawInit();
+  setQuote();
+  setInterval(setQuote, 60000);
 
   globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
   if(config.draw_fps > 0) { // Check draw_fps before starting draw interval
@@ -70,7 +72,6 @@ setSimulationFps = function(fps) {
 }
 
 createPopulation = function(initial_genomes) { // `initial_genomes` only used for very first population if needed
-  setQuote();
   updateWalkerTotalCount(globals.walker_id_counter); // Update UI with total walkers created so far
   var walkers = [];
   for(var k = 0; k < config.population_size; k++) {

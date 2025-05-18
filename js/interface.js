@@ -1,13 +1,26 @@
 quotes = [
-  "The Ministry of Silly Walks on steroids",
-  "It's like watching other people QWOP",
-  "Keep tumbling",
-  "As seen on a negative comment on Reddit",
-  "The Walking Sad",
-  "The Walking Fad",
-  "Army of QWOP",
-  "Nice me-and-my-friends-leaving-the-bar-at-2am simulator!"
+  "It is not the strongest of the species that survives, nor the most intelligent; it is the one most adaptable to change.",
+  "Man selects only for his own good: Nature only for that of the being which she tends.",
+  "Endless forms most beautiful and most wonderful have been, and are being, evolved.",
+  "The survival of the fittest.",
+  "Nature's grand experiment, one generation at a time.",
+  "From so simple a beginning, endless forms.",
+  "Adapt, or become a fossil.",
+  "The slow grind of natural selection.",
+  "Evolution: the greatest tinkerer.",
+  "Life finds a way, through variation and selection.",
+  "Every creature a masterpiece of adaptation.",
+  "The tapestry of life, woven by evolution's hand.",
+  "Witnessing the dance of genes and environment.",
+  "A struggle for existence, leading to perfection of structure.",
+  "The origin of species, playing out before your eyes.",
+  "One common ancestor, countless branching paths.",
+  "Evolution: a story written in the language of DNA.",
+  "Darwin's legacy: understanding life's unfolding.",
+  "The beauty of evolution is in its imperfections and its progress.",
+  "From primordial soup to… well, *this*."
 ];
+
 
 printNames = function(walkers) {
   var name_list = document.getElementById("name_list");
@@ -54,8 +67,6 @@ printChampion = function(walker) {
   while (champ_list.rows.length > config.population_size) { 
     champ_list.removeChild(champ_list.rows[0]); // Remove the first row (oldest entry)
   }
-  
-  setQuote();
 }
 
 updateWalkerTotalCount = function(number) { 
