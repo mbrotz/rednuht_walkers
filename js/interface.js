@@ -28,30 +28,34 @@ printNames = function(walkers) {
 }
 
 printChampion = function(walker) {
-  var champ_list = document.getElementById("champ_list");
+  var champ_list = document.getElementById("champ_list"); // This is the <tbody> element
   var tr = document.createElement("TR");
 
-  var cur_rows = champ_list.getElementsByTagName("TR");
-  if(cur_rows.length >= config.population_size * 2) { 
-    champ_list.removeChild(cur_rows[0]);
+  // Create and append cells for the new champion
+  var tdId = document.createElement("TD");
+  tdId.className = "generation"; // Class name kept for styling, content changed
+  tdId.appendChild(document.createTextNode(walker.id)); 
+  tr.appendChild(tdId);
+
+  var tdName = document.createElement("TD");
+  tdName.className = "name";
+  tdName.appendChild(document.createTextNode(walker.name));
+  tr.appendChild(tdName);
+
+  var tdScore = document.createElement("TD");
+  tdScore.className = "score";
+  tdScore.appendChild(document.createTextNode(walker[config.fitness_criterium].toFixed(2)));
+  tr.appendChild(tdScore);
+
+  champ_list.appendChild(tr); // Add the new champion row to the end of the table body
+
+  // Now, check if the list is too long and remove the oldest (topmost) entry if necessary
+  // The number of rows in the <tbody> is champ_list.rows.length
+  while (champ_list.rows.length > config.population_size) { 
+    champ_list.removeChild(champ_list.rows[0]); // Remove the first row (oldest entry)
   }
-
-  var td = document.createElement("TD");
-  td.className = "generation"; 
-  td.appendChild(document.createTextNode(walker.id)); 
-  tr.appendChild(td);
-
-  td = document.createElement("TD");
-  td.className = "name";
-  td.appendChild(document.createTextNode(walker.name));
-  tr.appendChild(td);
-
-  td = document.createElement("TD");
-  td.className = "score";
-  td.appendChild(document.createTextNode(walker[config.fitness_criterium].toFixed(2)));
-  tr.appendChild(td);
-
-  champ_list.appendChild(tr);
+  
+  setQuote();
 }
 
 updateWalkerTotalCount = function(number) { 
@@ -69,16 +73,22 @@ function setupSelectControl(elementId, configProperty, isFloat) {
         for (var k = 0; k < selectElement.options.length; k++) {
             var optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
             var configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
-             // Use a small epsilon for float comparison due to potential precision issues
             if (isFloat ? Math.abs(optionValue - configValue) < 0.0001 : optionValue === configValue) {
                 selectElement.options[k].selected = true;
                 break;
             }
         }
         selectElement.onchange = function() {
-            config[configProperty] = isFloat ? parseFloat(this.value) : parseInt(this.value);
-            // If a central `getInterfaceValues()` is called on major events, this direct update might be sufficient.
-            // Otherwise, `getInterfaceValues()` would need to be called or this logic duplicated there.
+            var newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
+            config[configProperty] = newValue;
+
+            // Specifically handle champion_pool_size change for the actual genome array
+            // The UI list for champions is handled in printChampion
+            if (configProperty === "champion_pool_size") {
+                while (globals.champion_genomes.length > newValue) {
+                    globals.champion_genomes.shift(); 
+                }
+            }
         };
     }
 }
@@ -90,9 +100,8 @@ interfaceSetup = function() {
   setupSelectControl("motor_noise", "motor_noise", true);
   setupSelectControl("selection_pressure", "selection_pressure", false);
   setupSelectControl("parent_from_champion_chance", "parent_from_champion_chance", true);
-  setupSelectControl("champion_pool_size", "champion_pool_size", false);
+  setupSelectControl("champion_pool_size", "champion_pool_size", false); // This updates the actual genome pool size
   
-  // FPS and Simulation Speed have special setter functions
   var fps_sel = document.getElementById("draw_fps");
   if (fps_sel) {
       for(var k = 0; k < fps_sel.options.length; k++) {
@@ -102,7 +111,7 @@ interfaceSetup = function() {
           }
       }
       fps_sel.onchange = function() {
-          setFps(parseInt(this.value)); // Ensure FPS is int
+          setFps(parseInt(this.value)); 
       }
   }
 
@@ -115,7 +124,7 @@ interfaceSetup = function() {
           }
       }
       simulation_fps_sel.onchange = function() {
-          setSimulationFps(parseInt(this.value)); // Ensure FPS is int
+          setSimulationFps(parseInt(this.value)); 
       }
   }
 }
