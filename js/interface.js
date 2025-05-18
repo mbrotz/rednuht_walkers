@@ -21,7 +21,6 @@ quotes = [
   "From primordial soup to… well, *this*."
 ];
 
-
 printNames = function(walkers) {
   var name_list = document.getElementById("name_list");
   name_list.innerHTML = "";
@@ -41,12 +40,11 @@ printNames = function(walkers) {
 }
 
 printChampion = function(walker) {
-  var champ_list = document.getElementById("champ_list"); // This is the <tbody> element
+  var champ_list = document.getElementById("champ_list"); 
   var tr = document.createElement("TR");
 
-  // Create and append cells for the new champion
   var tdId = document.createElement("TD");
-  tdId.className = "generation"; // Class name kept for styling, content changed
+  tdId.className = "generation"; 
   tdId.appendChild(document.createTextNode(walker.id)); 
   tr.appendChild(tdId);
 
@@ -60,13 +58,12 @@ printChampion = function(walker) {
   tdScore.appendChild(document.createTextNode(walker[config.fitness_criterium].toFixed(2)));
   tr.appendChild(tdScore);
 
-  champ_list.appendChild(tr); // Add the new champion row to the end of the table body
+  champ_list.appendChild(tr); 
 
-  // Now, check if the list is too long and remove the oldest (topmost) entry if necessary
-  // The number of rows in the <tbody> is champ_list.rows.length
   while (champ_list.rows.length > config.population_size) { 
-    champ_list.removeChild(champ_list.rows[0]); // Remove the first row (oldest entry)
+    champ_list.removeChild(champ_list.rows[0]); 
   }
+  setQuote(); 
 }
 
 updateWalkerTotalCount = function(number) { 
@@ -81,23 +78,28 @@ setQuote = function() {
 function setupSelectControl(elementId, configProperty, isFloat) {
     var selectElement = document.getElementById(elementId);
     if (selectElement) {
+        // Set initial selected option based on config
         for (var k = 0; k < selectElement.options.length; k++) {
             var optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
+            // Compare parseFloat for config[configProperty] as well if it's expected to be float
             var configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
             if (isFloat ? Math.abs(optionValue - configValue) < 0.0001 : optionValue === configValue) {
                 selectElement.options[k].selected = true;
                 break;
             }
         }
+        // Define onchange behavior
         selectElement.onchange = function() {
             var newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
             config[configProperty] = newValue;
 
-            // Specifically handle champion_pool_size change for the actual genome array
-            // The UI list for champions is handled in printChampion
             if (configProperty === "champion_pool_size") {
-                while (globals.champion_genomes.length > newValue) {
+                while (globals.champion_genomes && globals.champion_genomes.length > newValue) {
                     globals.champion_genomes.shift(); 
+                }
+            } else if (configProperty === "drift_pool_size") {
+                while (globals.drift_genomes && globals.drift_genomes.length > newValue) {
+                    globals.drift_genomes.shift();
                 }
             }
         };
@@ -109,9 +111,16 @@ interfaceSetup = function() {
   setupSelectControl("mutation_chance", "mutation_chance", true);
   setupSelectControl("mutation_amount", "mutation_amount", true);
   setupSelectControl("motor_noise", "motor_noise", true);
-  setupSelectControl("selection_pressure", "selection_pressure", false);
-  setupSelectControl("parent_from_champion_chance", "parent_from_champion_chance", true);
-  setupSelectControl("champion_pool_size", "champion_pool_size", false); // This updates the actual genome pool size
+  setupSelectControl("parent_from_population_selection_pressure", "parent_from_population_selection_pressure", false);
+  
+  // New/updated parent selection controls
+  setupSelectControl("parent_from_population_chance", "parent_from_population_chance", true);
+  setupSelectControl("parent_from_champion_pool_chance", "parent_from_champion_pool_chance", true);
+
+  // Pool size controls
+  setupSelectControl("champion_pool_size", "champion_pool_size", false);
+  setupSelectControl("drift_pool_size", "drift_pool_size", false);
+  setupSelectControl("drift_range", "drift_range", true);
   
   var fps_sel = document.getElementById("draw_fps");
   if (fps_sel) {

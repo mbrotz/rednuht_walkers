@@ -32,7 +32,6 @@ drawFrame = function() {
   globals.ctx.scale(globals.zoom, -globals.zoom);
   drawFloor();
   for(var k = config.population_size - 1; k >= 0 ; k--) {
-    // Ensure walker exists and has health, critical for continuous replacement
     if(globals.walkers[k] && globals.walkers[k].health > 0) {
       drawWalker(globals.walkers[k]);
     }
@@ -53,40 +52,22 @@ drawFloor = function() {
 }
 
 drawWalker = function(walker) {
-  // Removed is_elite check for styling
-  // Styling based on health remains
-  // Original:
-  // if(walker.is_elite) {
-  //   globals.ctx.strokeStyle = "hsl(22,100%,"+(90-55*walker.health/config.walker_health)+"%)";
-  //   globals.ctx.fillStyle = "hsl(20,45%,"+(100-15*walker.health/config.walker_health)+"%)";
-  // } else {
-  //   globals.ctx.strokeStyle = "hsl(240,100%,"+(90-49*walker.health/config.walker_health)+"%)";
-  //   globals.ctx.fillStyle = "hsl(240,45%,"+(100-15*walker.health/config.walker_health)+"%)";
-  // }
-
-  // Simplified styling: Use one color scheme, health-dependent
-  // Using the "non-elite" colors as the base
   globals.ctx.strokeStyle = "hsl(240,100%,"+(90-49*walker.health/config.walker_health)+"%)";
   globals.ctx.fillStyle = "hsl(240,45%,"+(100-15*walker.health/config.walker_health)+"%)";
-
   globals.ctx.lineWidth = 1/globals.zoom;
 
-  // left legs and arms first
   drawRect(walker.left_arm.lower_arm);
   drawRect(walker.left_arm.upper_arm);
   drawRect(walker.left_leg.foot);
   drawRect(walker.left_leg.lower_leg);
   drawRect(walker.left_leg.upper_leg);
 
-  // head
   drawRect(walker.head.neck);
   drawRect(walker.head.head);
 
-  // torso
   drawRect(walker.torso.lower_torso);
   drawRect(walker.torso.upper_torso);
 
-  // right legs and arms
   drawRect(walker.right_leg.upper_leg);
   drawRect(walker.right_leg.lower_leg);
   drawRect(walker.right_leg.foot);
@@ -95,7 +76,6 @@ drawWalker = function(walker) {
 }
 
 drawRect = function(body) {
-  // set strokestyle and fillstyle before call
   globals.ctx.beginPath();
   var fixture = body.GetFixtureList();
   var shape = fixture.GetShape();
@@ -131,7 +111,7 @@ getMinMaxDistance = function() {
   var min_y = 9999;
   var max_y = -1;
   for(var k = 0; k < globals.walkers.length; k++) {
-    if(globals.walkers[k] && globals.walkers[k].health > 0) { // Check if walker exists
+    if(globals.walkers[k] && globals.walkers[k].health > 0) { 
       var dist = globals.walkers[k].torso.upper_torso.GetPosition();
       min_x = Math.min(min_x, dist.x);
       max_x = Math.max(max_x, dist.x);
@@ -139,7 +119,6 @@ getMinMaxDistance = function() {
       max_y = Math.max(max_y, dist.y);
     }
   }
-  // Handle case where no walkers are active (e.g., very start or if all die simultaneously)
   if (max_x === -1) {
     min_x = 0; max_x = 1; min_y = 0; max_y = 1;
   }
@@ -149,8 +128,8 @@ getMinMaxDistance = function() {
 getZoom = function(min_x, max_x, min_y, max_y) {
   var delta_x = Math.abs(max_x - min_x);
   var delta_y = Math.abs(max_y - min_y);
-  if (delta_x === 0) delta_x = 1; // Prevent division by zero
-  if (delta_y === 0) delta_y = 1; // Prevent division by zero
+  if (delta_x === 0) delta_x = 1; 
+  if (delta_y === 0) delta_y = 1; 
   var zoom = Math.min(globals.main_screen.width/delta_x,globals.main_screen.height/delta_y);
   return zoom;
 }

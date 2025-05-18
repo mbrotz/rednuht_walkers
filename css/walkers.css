@@ -77,7 +77,7 @@ select {
 }
 
 .name_list_table .name {
-  text-transform: capitalize;
+  /* text-transform: capitalize; */ /* Removed to allow Genus species casing */
 }
 
   .name_list_table .elite_name {

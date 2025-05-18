@@ -18,9 +18,12 @@ config = {
   min_leg_delta: 0.4,
   instadeath_delta: 0.4,
   population_size: 40,
-  champion_pool_size: 5, // Number of recent champions to keep
-  parent_from_champion_chance: 0.5, // Probability to pick parent from champion pool
-  selection_pressure: 2,
+  champion_pool_size: 5, 
+  drift_pool_size: 10,
+  drift_range: 0.25,
+  parent_from_population_selection_pressure: 3,
+  parent_from_population_chance: 0.25,
+  parent_from_champion_pool_chance: 0.25,
 };
 
 globals = {};
@@ -32,17 +35,19 @@ gameInit = function() {
   
   globals.walker_id_counter = 0;
   globals.champion_genomes = []; // Store genomes of champions
-  globals.last_record = 0; // Initialize last_record
+  globals.drift_genomes = [];   // Store genomes for the drift pool
+  globals.last_record = 0;    // Initialize last_record
 
   globals.walkers = createPopulation(); // Initial population
 
   globals.floor = createFloor();
   drawInit();
-  setQuote();
-  setInterval(setQuote, 60000);
+
+  setQuote(); // Set initial quote
+  setInterval(setQuote, 60000); // Change quote every minute
 
   globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
-  if(config.draw_fps > 0) { // Check draw_fps before starting draw interval
+  if(config.draw_fps > 0) { 
     globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.draw_fps));
   }
 }
@@ -58,21 +63,21 @@ setSimulationFps = function(fps) {
   clearInterval(globals.simulation_interval);
   if(fps > 0) {
     globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
-    if(globals.paused) { // Resume drawing if it was paused
+    if(globals.paused) { 
       globals.paused = false;
       if(config.draw_fps > 0) {
         globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.draw_fps));
       }
     }
   } else {
-    // pause the drawing as well
     clearInterval(globals.draw_interval);
     globals.paused = true;
   }
 }
 
-createPopulation = function(initial_genomes) { // `initial_genomes` only used for very first population if needed
-  updateWalkerTotalCount(globals.walker_id_counter); // Update UI with total walkers created so far
+createPopulation = function(initial_genomes) { 
+  // setQuote(); // Moved to gameInit to allow interval setting
+  updateWalkerTotalCount(globals.walker_id_counter); 
   var walkers = [];
   for(var k = 0; k < config.population_size; k++) {
     globals.walker_id_counter++;
@@ -80,7 +85,7 @@ createPopulation = function(initial_genomes) { // `initial_genomes` only used fo
     if(initial_genomes && initial_genomes[k]) {
       walker = new Walker(globals.world, initial_genomes[k]);
     } else {
-      walker = new Walker(globals.world); // Creates walker with random genome
+      walker = new Walker(globals.world); 
     }
     walker.id = globals.walker_id_counter;
     walkers.push(walker);
@@ -89,22 +94,30 @@ createPopulation = function(initial_genomes) { // `initial_genomes` only used fo
 }
 
 populationSimulationStep = function() {
-  // Removed dead_dudes counter
   for(var k = 0; k < config.population_size; k++) {
     if(globals.walkers[k].health > 0) {
       globals.walkers[k].simulationStep(config.motor_noise);
-    } else { // Walker has died
-      if(!globals.walkers[k].is_dead) { // Process death once
-        // Record Check
+    } else { 
+      if(!globals.walkers[k].is_dead) { 
+        // Record Check (Champion Pool)
         if(globals.walkers[k][config.fitness_criterium] > globals.last_record) {
           globals.last_record = globals.walkers[k][config.fitness_criterium];
-          printChampion(globals.walkers[k]); // printChampion now uses walker.id
+          printChampion(globals.walkers[k]); 
 
-          // Add genome to champion pool
           globals.champion_genomes.push(JSON.parse(JSON.stringify(globals.walkers[k].genome)));
-          // Ensure the champion pool is trimmed to the configured size
           while(globals.champion_genomes.length > config.champion_pool_size) {
-            globals.champion_genomes.shift(); // Remove oldest champion genome
+            globals.champion_genomes.shift(); 
+          }
+        }
+
+        // Drift Pool Check
+        // Qualifies if score is within drift_range of the current record and drift pool is enabled
+        if (config.drift_pool_size > 0 && globals.last_record > 0 &&
+            globals.walkers[k][config.fitness_criterium] >= (1 - config.drift_range) * globals.last_record) {
+          
+          globals.drift_genomes.push(JSON.parse(JSON.stringify(globals.walkers[k].genome)));
+          while (globals.drift_genomes.length > config.drift_pool_size) {
+            globals.drift_genomes.shift();
           }
         }
 
@@ -115,14 +128,13 @@ populationSimulationStep = function() {
             globals.walkers[k].bodies[l] = null;
           }
         }
-        globals.walkers[k].is_dead = true; // Mark as processed
+        globals.walkers[k].is_dead = true; 
 
-        // Replace Walker
         replaceWalkerAtIndex(k);
       }
     }
   }
-  printNames(globals.walkers); // Update UI list
+  printNames(globals.walkers); 
 }
 
 replaceWalkerAtIndex = function(index) {
@@ -139,29 +151,21 @@ replaceWalkerAtIndex = function(index) {
 
 pickParentGenome = function() {
   var parent_genome_source = null;
-  var chosen_walker = null; // To store the selected walker instance
+  var chosen_walker = null; 
 
-  // Decide source: Champion pool or Active pool
-  if (Math.random() < config.parent_from_champion_chance && globals.champion_genomes.length > 0) {
-    // Pick from champion pool
-    var randomIndex = Math.floor(Math.random() * globals.champion_genomes.length);
-    parent_genome_source = globals.champion_genomes[randomIndex];
-    // console.log("Picked from Champion Pool");
-  } else {
+  // Stage 1: Decide Source Type (Active Population vs. Pools)
+  if (Math.random() < config.parent_from_population_chance) {
     // Pick from active pool using tournament selection
     var living_walkers_indices = [];
     for(var i=0; i < globals.walkers.length; i++) {
-        // Ensure walker exists and is alive (health > 0 is a good proxy, or !is_dead)
-        if(globals.walkers[i] && globals.walkers[i].health > 0) {
+        if(globals.walkers[i] && globals.walkers[i].health > 0) { // Consider only living walkers
             living_walkers_indices.push(i);
         }
     }
 
     if (living_walkers_indices.length > 0) {
       var best_walker_in_tournament = null;
-
-      for (var s = 0; s < config.selection_pressure; s++) {
-        // Pick a random living walker for the tournament
+      for (var s = 0; s < config.parent_from_population_selection_pressure; s++) {
         var random_living_index_in_array = Math.floor(Math.random() * living_walkers_indices.length);
         var candidate_walker_index = living_walkers_indices[random_living_index_in_array];
         var candidate_walker = globals.walkers[candidate_walker_index];
@@ -170,40 +174,60 @@ pickParentGenome = function() {
           best_walker_in_tournament = candidate_walker;
         }
       }
-      
       if (best_walker_in_tournament) {
-        chosen_walker = best_walker_in_tournament;
-        parent_genome_source = chosen_walker.genome;
-        // console.log("Picked from Active Pool (Tournament Winner): " + chosen_walker.name + " Score: " + chosen_walker[config.fitness_criterium]);
+        parent_genome_source = best_walker_in_tournament.genome;
+        // console.log("Picked from Active Pool (Tournament Winner)");
+      }
+    }
+  } else {
+    // Pick from Champion Pool or Drift Pool
+    // Stage 2: Pool Selection (Champion Pool vs. Drift Pool)
+    if (Math.random() < config.parent_from_champion_pool_chance) {
+      // Try Champion Pool first
+      if (globals.champion_genomes.length > 0) {
+        var randomIndex = Math.floor(Math.random() * globals.champion_genomes.length);
+        parent_genome_source = globals.champion_genomes[randomIndex];
+        // console.log("Picked from Champion Pool");
+      } else if (globals.drift_genomes.length > 0 && config.drift_pool_size > 0) { // Fallback to Drift Pool
+        var randomIndex = Math.floor(Math.random() * globals.drift_genomes.length);
+        parent_genome_source = globals.drift_genomes[randomIndex];
+        // console.log("Picked from Drift Pool (fallback from empty Champion)");
+      }
+    } else {
+      // Try Drift Pool first
+      if (globals.drift_genomes.length > 0 && config.drift_pool_size > 0) {
+        var randomIndex = Math.floor(Math.random() * globals.drift_genomes.length);
+        parent_genome_source = globals.drift_genomes[randomIndex];
+        // console.log("Picked from Drift Pool");
+      } else if (globals.champion_genomes.length > 0) { // Fallback to Champion Pool
+        var randomIndex = Math.floor(Math.random() * globals.champion_genomes.length);
+        parent_genome_source = globals.champion_genomes[randomIndex];
+        // console.log("Picked from Champion Pool (fallback from empty Drift)");
       }
     }
   }
 
-  // Fallback: if no parent genome could be selected
+  // Fallback: if no parent genome could be selected from any preferred source
   if (!parent_genome_source) {
-    // console.log("Fallback: Creating random genome");
+    // console.log("Fallback: Creating random genome as no suitable parent found.");
     var tempWalker = new Walker(globals.world); 
     parent_genome_source = tempWalker.genome;
+    // Clean up temporary walker bodies
     for(var l = 0; l < tempWalker.bodies.length; l++) {
       if(tempWalker.bodies[l]) {
         globals.world.DestroyBody(tempWalker.bodies[l]);
       }
     }
   }
-  // Return a clone to prevent direct modification of the champion/active walker's genome
   return JSON.parse(JSON.stringify(parent_genome_source)); 
 }
 
 cloneAndMutate = function(parent_genome) {
-  // Deep clone the parent genome
   var new_genome = JSON.parse(JSON.stringify(parent_genome));
-
   for (var k = 0; k < new_genome.length; k++) {
     for (var g_prop in new_genome[k]) {
       if (new_genome[k].hasOwnProperty(g_prop)) {
         if (Math.random() < config.mutation_chance) {
-          // Assuming all genome properties are numeric factors like cos_factor, time_factor, time_shift
-          // The original 'target' logic is not applicable to the current genome structure.
           new_genome[k][g_prop] = new_genome[k][g_prop] * (1 + config.mutation_amount * (Math.random() * 2 - 1));
         }
       }
@@ -212,13 +236,10 @@ cloneAndMutate = function(parent_genome) {
   return new_genome;
 }
 
-// DELETED: nextGeneration, killGeneration, createNewGenerationGenomes, pickParents (old version), copulate, mutateClones
-
 getInterfaceValues = function() {
-  // config.elite_clones = document.getElementById("elite_clones").value; // Removed
+  // This function is largely superseded by direct updates in interface.js for new controls
+  // Kept for existing controls not managed by setupSelectControl or if other settings are added here later.
   config.mutation_chance = document.getElementById("mutation_chance").value;
   config.mutation_amount = document.getElementById("mutation_amount").value;
   config.motor_noise = parseFloat(document.getElementById("motor_noise").value);
-  // config.round_length = document.getElementById("round_length").value; // Removed
-  // Potentially add UI controls for champion_pool_size and parent_from_champion_chance here if added to HTML
 }
