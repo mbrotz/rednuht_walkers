@@ -33,7 +33,8 @@ printNames = function(walkers) {
 
     td = document.createElement("TD");
     td.className = "score";
-    td.appendChild(document.createTextNode(walkers[k][config.fitness_criterium].toFixed(2)));
+    // Use the unified fitness_score
+    td.appendChild(document.createTextNode(walkers[k].fitness_score.toFixed(2)));
     tr.appendChild(td);
     name_list.appendChild(tr);
   }
@@ -55,24 +56,19 @@ printChampion = function(walker) {
 
   var tdScore = document.createElement("TD");
   tdScore.className = "score";
-  tdScore.appendChild(document.createTextNode(walker[config.fitness_criterium].toFixed(2)));
+  // Use the unified fitness_score (which is its final score upon elimination)
+  tdScore.appendChild(document.createTextNode(walker.fitness_score.toFixed(2)));
   tr.appendChild(tdScore);
 
-  // Insert new champion at the top of the list
   if (champ_list.firstChild) {
     champ_list.insertBefore(tr, champ_list.firstChild);
   } else {
     champ_list.appendChild(tr);
   }
 
-  // Remove oldest entries if list is too long
-  // config.population_size was used here, but it should probably be a different limit,
-  // or use config.champion_pool_size for the visual list too, if desired.
-  // For now, let's assume we want to display up to config.population_size champions in the UI list.
   while (champ_list.rows.length > config.population_size) { 
-    champ_list.removeChild(champ_list.rows[champ_list.rows.length - 1]); // Remove the last row (oldest entry at bottom)
+    champ_list.removeChild(champ_list.rows[champ_list.rows.length - 1]);
   }
-  // setQuote(); // This is still fine here if you want quote to change with champions
 }
 
 updateWalkerTotalCount = function(number) { 
@@ -107,18 +103,27 @@ updatePoolStatsDisplay = function() {
 
 setQuote = function() {
   var quoteEl = document.getElementById("page_quote");
-  if (quoteEl) { // Check if element exists
+  if (quoteEl) {
     quoteEl.innerHTML = '"'+quotes[Math.floor(Math.random() * quotes.length)]+'"';
   }
 }
 
-// Helper function to set up a select element
 function setupSelectControl(elementId, configProperty, isFloat) {
   var selectElement = document.getElementById(elementId);
   if (selectElement) {
+    // Ensure configProperty is lowercase if it's coming from an older mixed-case setup
+    var lowerCaseConfigProperty = configProperty.toLowerCase();
+
     for (var k = 0; k < selectElement.options.length; k++) {
       var optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
-      var configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
+      // Access config with lowercase key
+      var configValue = isFloat ? parseFloat(config[lowerCaseConfigProperty]) : parseInt(config[lowerCaseConfigProperty]);
+      
+      if (config[lowerCaseConfigProperty] === undefined && config[configProperty] !== undefined) { // Fallback for existing mixed-case properties not yet fully transitioned
+        configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
+      }
+
+
       if (isFloat ? Math.abs(optionValue - configValue) < 0.0001 : optionValue === configValue) {
         selectElement.options[k].selected = true;
         break;
@@ -126,17 +131,24 @@ function setupSelectControl(elementId, configProperty, isFloat) {
     }
     selectElement.onchange = function() {
       var newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
-      config[configProperty] = newValue;
+      // Set config with lowercase key
+      config[lowerCaseConfigProperty] = newValue;
+      if (config[configProperty] !== undefined && lowerCaseConfigProperty !== configProperty) { // If mixed case existed, update it too for safety or remove old
+          config[configProperty] = newValue; 
+      }
+
 
       var poolsMayHaveChanged = false;
-      if (configProperty === "champion_pool_size") {
+      var changedProperty = lowerCaseConfigProperty; // Use lowercase for comparison
+
+      if (changedProperty === "champion_pool_size") {
         while (globals.champion_genomes && globals.champion_genomes.length > newValue) {
-                    globals.champion_genomes.pop(); // Remove from end since new ones are added to front
+                    globals.champion_genomes.pop(); 
                     poolsMayHaveChanged = true;
                   }
-                } else if (configProperty === "drift_pool_size") {
+                } else if (changedProperty === "drift_pool_size") {
                   while (globals.drift_genomes && globals.drift_genomes.length > newValue) {
-                    globals.drift_genomes.pop(); // Remove from end
+                    globals.drift_genomes.pop(); 
                     poolsMayHaveChanged = true;
                   }
                 }
@@ -152,7 +164,7 @@ function setupSelectControl(elementId, configProperty, isFloat) {
             setupSelectControl("mutation_chance", "mutation_chance", true);
             setupSelectControl("mutation_amount", "mutation_amount", true);
             setupSelectControl("motor_noise", "motor_noise", true);
-  setupSelectControl("population_selection_pressure", "population_selection_pressure", false); // Renamed ID & property
+  setupSelectControl("population_selection_pressure", "population_selection_pressure", false); 
   
   setupSelectControl("parent_from_population_chance", "parent_from_population_chance", true);
   setupSelectControl("parent_from_champion_pool_chance", "parent_from_champion_pool_chance", true);
@@ -164,7 +176,7 @@ function setupSelectControl(elementId, configProperty, isFloat) {
   var fps_sel = document.getElementById("draw_fps");
   if (fps_sel) {
     for(var k = 0; k < fps_sel.options.length; k++) {
-      if(fps_sel.options[k].value == config.draw_fps) {
+      if(fps_sel.options[k].value == config.draw_fps) { // config.draw_fps is already lowercase
         fps_sel.options[k].selected = true;
         break;
       }
@@ -177,7 +189,7 @@ function setupSelectControl(elementId, configProperty, isFloat) {
   var simulation_fps_sel = document.getElementById("simulation_fps");
   if (simulation_fps_sel) {
     for(var k = 0; k < simulation_fps_sel.options.length; k++) {
-      if(simulation_fps_sel.options[k].value == config.simulation_fps) {
+      if(simulation_fps_sel.options[k].value == config.simulation_fps) { // config.simulation_fps is already lowercase
         simulation_fps_sel.options[k].selected = true;
         break;
       }

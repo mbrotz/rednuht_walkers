@@ -1,5 +1,5 @@
 config = {
-  motor_noise: 0.0, // Default changed to 0%
+  motor_noise: 0.0,
   time_step: 60,
   simulation_fps: 60,
   draw_fps: 60,
@@ -10,20 +10,27 @@ config = {
   max_motor_speed: 2,
   mutation_chance: 0.1,
   mutation_amount: 0.5,
-  walker_health: 300,
-  fitness_criterium: 'score', 
-  check_health: true,
+  // walker_health: 300, // Removed
+  // fitness_criterium: 'score', // Removed
+  // check_health: true, // Removed
   max_floor_tiles: 50,
-  min_body_delta: 1.4,
-  min_leg_delta: 0.4,
-  instadeath_delta: 0.4,
+  // min_body_delta: 1.4, // Removed
+  // min_leg_delta: 0.4, // Removed
+  // instadeath_delta: 0.4, // Removed
   population_size: 40,
-  champion_pool_size: 5, 
-  population_selection_pressure: 3, // Renamed and default changed
+  champion_pool_size: 5,
+  population_selection_pressure: 3,
   drift_pool_size: 10,
-  drift_range: 0.25, 
-  parent_from_population_chance: 0.25, // Default changed
-  parent_from_champion_pool_chance: 0.25, // Default changed
+  drift_range: 0.25,
+  parent_from_population_chance: 0.25,
+  parent_from_champion_pool_chance: 0.25,
+
+  // New "Persistent Pursuit & Performance Metric" parameters
+  max_reasonable_head_height: 2.2, // Optimal upright head Y position for normalization.
+  min_posture_contribution: 0.3,   // Minimum multiplier from posture (0.0 to 1.0).
+  pressure_line_starting_offset: 0.75, // How far behind the walker the pressure line starts.
+  pressure_line_base_speed: 0.002,     // Per step, e.g., 0.002 units/step.
+  pressure_line_acceleration_factor: 0.00001 // Per step^2, e.g., 0.00001 units/step^2.
 };
 
 globals = {};
@@ -96,42 +103,49 @@ createPopulation = function(initial_genomes) {
 populationSimulationStep = function() {
   var poolsChanged = false;
   for(var k = 0; k < config.population_size; k++) {
-    if(globals.walkers[k].health > 0) {
+    if(!globals.walkers[k].is_eliminated) {
       globals.walkers[k].simulationStep(config.motor_noise);
     } else { 
-      if(!globals.walkers[k].is_dead) { 
-        var deadWalker = globals.walkers[k];
-        var deadWalkerScore = deadWalker[config.fitness_criterium];
-        var deadWalkerGenome = JSON.parse(JSON.stringify(deadWalker.genome));
+      if(!globals.walkers[k].processed_after_elimination) { 
+        var eliminatedWalker = globals.walkers[k];
+        var eliminatedWalkerScore = eliminatedWalker.fitness_score; // Unified fitness_score
+        var eliminatedWalkerGenome = JSON.parse(JSON.stringify(eliminatedWalker.genome));
 
-        if(deadWalkerScore > globals.last_record) {
-          globals.last_record = deadWalkerScore;
-          printChampion(deadWalker); 
+        // Scores can be negative. last_record can also become negative.
+        if(eliminatedWalkerScore > globals.last_record) {
+          globals.last_record = eliminatedWalkerScore;
+          printChampion(eliminatedWalker); 
 
-          globals.champion_genomes.unshift({genome: deadWalkerGenome, score: deadWalkerScore}); // Add to front
+          globals.champion_genomes.unshift({genome: eliminatedWalkerGenome, score: eliminatedWalkerScore});
           poolsChanged = true;
           while(globals.champion_genomes.length > config.champion_pool_size) {
-            globals.champion_genomes.pop(); // Remove from end
+            globals.champion_genomes.pop();
           }
         }
 
-        if (config.drift_pool_size > 0 && globals.last_record > 0 &&
-          deadWalkerScore >= (1 - config.drift_range) * globals.last_record) {
+        // Drift pool logic might need care if last_record is negative or very small.
+        // For now, assuming it handles it or the threshold is met appropriately.
+        // If last_record is 0, threshold is 0. If last_record is positive, works as before.
+        // If last_record is negative, (1-drift_range)*last_record will be less negative (closer to 0).
+        // A score must be MORE positive (or less negative) than this threshold.
+        if (config.drift_pool_size > 0 && // only if drift pool is enabled
+            (globals.last_record > 0 || eliminatedWalkerScore > 0) && // ensure some positive progress for drift meaningfulness
+            eliminatedWalkerScore >= (1 - config.drift_range) * globals.last_record) {
           
-          globals.drift_genomes.unshift({genome: deadWalkerGenome, score: deadWalkerScore}); // Add to front
-        poolsChanged = true;
-        while (globals.drift_genomes.length > config.drift_pool_size) {
-            globals.drift_genomes.pop(); // Remove from end
+          globals.drift_genomes.unshift({genome: eliminatedWalkerGenome, score: eliminatedWalkerScore});
+          poolsChanged = true;
+          while (globals.drift_genomes.length > config.drift_pool_size) {
+            globals.drift_genomes.pop();
           }
         }
 
-        for(var l = 0; l < deadWalker.bodies.length; l++) {
-          if(deadWalker.bodies[l]) {
-            globals.world.DestroyBody(deadWalker.bodies[l]);
-            deadWalker.bodies[l] = null;
+        for(var l = 0; l < eliminatedWalker.bodies.length; l++) {
+          if(eliminatedWalker.bodies[l]) {
+            globals.world.DestroyBody(eliminatedWalker.bodies[l]);
+            eliminatedWalker.bodies[l] = null;
           }
         }
-        deadWalker.is_dead = true; 
+        eliminatedWalker.processed_after_elimination = true; 
 
         replaceWalkerAtIndex(k);
       }
@@ -168,19 +182,19 @@ pickParentGenome = function() {
   if (Math.random() < config.parent_from_population_chance) {
     var living_walkers_indices = [];
     for(var i=0; i < globals.walkers.length; i++) {
-      if(globals.walkers[i] && globals.walkers[i].health > 0) { 
+      if(globals.walkers[i] && !globals.walkers[i].is_eliminated) { // Check for not eliminated
         living_walkers_indices.push(i);
       }
     }
 
     if (living_walkers_indices.length > 0) {
       var best_walker_in_tournament = null;
-      for (var s = 0; s < config.population_selection_pressure; s++) { // Renamed variable
+      for (var s = 0; s < config.population_selection_pressure; s++) {
         var random_living_index_in_array = Math.floor(Math.random() * living_walkers_indices.length);
         var candidate_walker_index = living_walkers_indices[random_living_index_in_array];
         var candidate_walker = globals.walkers[candidate_walker_index];
 
-        if (!best_walker_in_tournament || candidate_walker[config.fitness_criterium] > best_walker_in_tournament[config.fitness_criterium]) {
+        if (!best_walker_in_tournament || candidate_walker.fitness_score > best_walker_in_tournament.fitness_score) { // Use fitness_score
           best_walker_in_tournament = candidate_walker;
         }
       }
@@ -245,12 +259,6 @@ cloneAndMutate = function(parent_genome) {
   return new_genome;
 }
 
-// getInterfaceValues is now mostly handled by setupSelectControl, can be removed or kept for legacy.
-// For simplicity, I'll leave it but note its reduced role.
 getInterfaceValues = function() {
   // This function is largely superseded by direct updates in interface.js for new controls
-  // Kept for existing controls not managed by setupSelectControl or if other settings are added here later.
-  // config.mutation_chance = document.getElementById("mutation_chance").value; // Example, now handled by setupSelectControl
-  // config.mutation_amount = document.getElementById("mutation_amount").value; // Example
-  // config.motor_noise = parseFloat(document.getElementById("motor_noise").value); // Example
 }

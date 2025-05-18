@@ -32,7 +32,9 @@ drawFrame = function() {
   globals.ctx.scale(globals.zoom, -globals.zoom);
   drawFloor();
   for(var k = config.population_size - 1; k >= 0 ; k--) {
-    if(globals.walkers[k] && globals.walkers[k].health > 0) {
+    // Check if walker exists and is not eliminated (or if it's eliminated but you still want to draw its last frame, adjust logic)
+    // For now, only draw active (not eliminated) walkers.
+    if(globals.walkers[k] && !globals.walkers[k].is_eliminated) {
       drawWalker(globals.walkers[k]);
     }
   }
@@ -52,8 +54,27 @@ drawFloor = function() {
 }
 
 drawWalker = function(walker) {
-  globals.ctx.strokeStyle = "hsl(240,100%,"+(90-49*walker.health/config.walker_health)+"%)";
-  globals.ctx.fillStyle = "hsl(240,45%,"+(100-15*walker.health/config.walker_health)+"%)";
+  // Color based on average normalized head height
+  var steps_lived = walker.local_step_counter; // Already incremented for current frame, or 0 if first frame
+  var current_avg_normalized_head_height = 0.5; // Default if no steps yet or sum is undefined
+  if (steps_lived > 0 && walker.sum_normalized_head_heights !== undefined) {
+      // Use local_step_counter from previous step for average as sum_normalized_head_heights is for current step
+      var effective_steps_for_avg = walker.local_step_counter; 
+      if (walker.local_step_counter === 0 && walker.sum_normalized_head_heights > 0) { // First step completed
+          effective_steps_for_avg = 1;
+      }
+      if (effective_steps_for_avg > 0) {
+        current_avg_normalized_head_height = walker.sum_normalized_head_heights / effective_steps_for_avg;
+      }
+  }
+  current_avg_normalized_head_height = Math.min(1.0, Math.max(0.0, current_avg_normalized_head_height));
+
+
+  var brightness_factor = 40 + 50 * current_avg_normalized_head_height; // From 40% to 90%
+  var saturation_factor = 30 + 40 * current_avg_normalized_head_height; // From 30% to 70%
+  
+  globals.ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
+  globals.ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";
   globals.ctx.lineWidth = 1/globals.zoom;
 
   drawRect(walker.left_arm.lower_arm);
@@ -110,16 +131,23 @@ getMinMaxDistance = function() {
   var max_x = -1;
   var min_y = 9999;
   var max_y = -1;
+  var activeWalkerFound = false;
   for(var k = 0; k < globals.walkers.length; k++) {
-    if(globals.walkers[k] && globals.walkers[k].health > 0) { 
-      var dist = globals.walkers[k].torso.upper_torso.GetPosition();
+    if(globals.walkers[k] && !globals.walkers[k].is_eliminated) { 
+      activeWalkerFound = true;
+      var dist = globals.walkers[k].torso.upper_torso.GetPosition(); // Use consistent torso part
       min_x = Math.min(min_x, dist.x);
       max_x = Math.max(max_x, dist.x);
-      min_y = Math.min(min_y, globals.walkers[k].low_foot_height, globals.walkers[k].head_height);
-      max_y = Math.max(max_y, dist.y);
+      
+      // For min_y, consider current head height and foot height if available or just torso y
+      var current_head_y_for_zoom = globals.walkers[k].head.head.GetPosition().y;
+      var current_low_foot_y_for_zoom = Math.min(globals.walkers[k].left_leg.foot.GetPosition().y, globals.walkers[k].right_leg.foot.GetPosition().y);
+
+      min_y = Math.min(min_y, current_low_foot_y_for_zoom, current_head_y_for_zoom);
+      max_y = Math.max(max_y, dist.y, current_head_y_for_zoom); // Max of torso y and head y
     }
   }
-  if (max_x === -1) {
+  if (!activeWalkerFound) { // Default if no active walkers
     min_x = 0; max_x = 1; min_y = 0; max_y = 1;
   }
   return {min_x:min_x, max_x:max_x, min_y:min_y, max_y:max_y};
