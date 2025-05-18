@@ -93,12 +93,21 @@
         border: 1px solid #ccc;
         border-radius: 3px;
       }
-      #total_created_counter_display {
+      #stats_display_area { /* Renamed from total_created_counter_display for clarity */
           text-align: center;
-          font-size: 1.1em;
+          font-size: 1.0em; /* Adjusted font size for more text */
           margin-top: 15px;
           margin-bottom: 20px;
           color: #333;
+          display: flex; /* Use flexbox for better alignment */
+          flex-wrap: wrap; /* Allow wrapping on smaller screens */
+          justify-content: center; /* Center items */
+          gap: 10px; /* Space between items */
+      }
+      .stat_item { /* Class for individual stat items */
+        padding: 3px 8px;
+        background-color: #f0f0f0;
+        border-radius: 3px;
       }
       #about_section_container {
           clear: both; 
@@ -138,8 +147,10 @@
         <canvas id="main_screen" width="800" height="350"></canvas>
       </div>
 
-      <div id="total_created_counter_display">
-        Total Walkers Created: <span id="gen_number">0</span>
+      <div id="stats_display_area">
+        <span class="stat_item">Total Walkers: <span id="gen_number">0</span></span>
+        <span class="stat_item">Champion Pool: <span id="champ_pool_size_display">0</span> (<span id="champ_pool_avg_score_display">0.00</span> avg)</span>
+        <span class="stat_item">Drift Pool: <span id="drift_pool_size_display">0</span> (<span id="drift_pool_avg_score_display">0.00</span> avg)</span>
       </div>
 
       <div id="info_and_controls_container">
@@ -213,8 +224,8 @@
             </select>
           </div>
           <div class="control_group">
-            <label for="parent_from_population_selection_pressure">Selection Pressure (Active Population)</label>
-            <select id="parent_from_population_selection_pressure">
+            <label for="selection_pressure">Selection Pressure (Active Pool)</label>
+            <select id="selection_pressure">
               <option value="1">1 (Random)</option>
               <option value="2" selected>2</option>
               <option value="3">3</option>

@@ -70,6 +70,32 @@ updateWalkerTotalCount = function(number) {
   document.getElementById("gen_number").innerHTML = number;
 }
 
+updatePoolStatsDisplay = function() {
+    var champPoolSizeEl = document.getElementById("champ_pool_size_display");
+    var champPoolAvgScoreEl = document.getElementById("champ_pool_avg_score_display");
+    var driftPoolSizeEl = document.getElementById("drift_pool_size_display");
+    var driftPoolAvgScoreEl = document.getElementById("drift_pool_avg_score_display");
+
+    var champPoolSize = globals.champion_genomes.length;
+    var champTotalScore = 0;
+    for (var i = 0; i < champPoolSize; i++) {
+        champTotalScore += globals.champion_genomes[i].score;
+    }
+    var champAvgScore = champPoolSize > 0 ? (champTotalScore / champPoolSize) : 0;
+
+    var driftPoolSize = globals.drift_genomes.length;
+    var driftTotalScore = 0;
+    for (var i = 0; i < driftPoolSize; i++) {
+        driftTotalScore += globals.drift_genomes[i].score;
+    }
+    var driftAvgScore = driftPoolSize > 0 ? (driftTotalScore / driftPoolSize) : 0;
+
+    if (champPoolSizeEl) champPoolSizeEl.innerHTML = champPoolSize;
+    if (champPoolAvgScoreEl) champPoolAvgScoreEl.innerHTML = champAvgScore.toFixed(2);
+    if (driftPoolSizeEl) driftPoolSizeEl.innerHTML = driftPoolSize;
+    if (driftPoolAvgScoreEl) driftPoolAvgScoreEl.innerHTML = driftAvgScore.toFixed(2);
+}
+
 setQuote = function() {
   document.getElementById("page_quote").innerHTML = '"'+quotes[Math.floor(Math.random() * quotes.length)]+'"';
 }
@@ -78,29 +104,32 @@ setQuote = function() {
 function setupSelectControl(elementId, configProperty, isFloat) {
     var selectElement = document.getElementById(elementId);
     if (selectElement) {
-        // Set initial selected option based on config
         for (var k = 0; k < selectElement.options.length; k++) {
             var optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
-            // Compare parseFloat for config[configProperty] as well if it's expected to be float
             var configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
             if (isFloat ? Math.abs(optionValue - configValue) < 0.0001 : optionValue === configValue) {
                 selectElement.options[k].selected = true;
                 break;
             }
         }
-        // Define onchange behavior
         selectElement.onchange = function() {
             var newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
             config[configProperty] = newValue;
 
+            var poolsMayHaveChanged = false;
             if (configProperty === "champion_pool_size") {
                 while (globals.champion_genomes && globals.champion_genomes.length > newValue) {
                     globals.champion_genomes.shift(); 
+                    poolsMayHaveChanged = true;
                 }
             } else if (configProperty === "drift_pool_size") {
                 while (globals.drift_genomes && globals.drift_genomes.length > newValue) {
                     globals.drift_genomes.shift();
+                    poolsMayHaveChanged = true;
                 }
+            }
+            if (poolsMayHaveChanged) {
+                updatePoolStatsDisplay(); // Update display if pool sizes were programmatically changed
             }
         };
     }
@@ -111,13 +140,11 @@ interfaceSetup = function() {
   setupSelectControl("mutation_chance", "mutation_chance", true);
   setupSelectControl("mutation_amount", "mutation_amount", true);
   setupSelectControl("motor_noise", "motor_noise", true);
-  setupSelectControl("parent_from_population_selection_pressure", "parent_from_population_selection_pressure", false);
+  setupSelectControl("selection_pressure", "selection_pressure", false);
   
-  // New/updated parent selection controls
   setupSelectControl("parent_from_population_chance", "parent_from_population_chance", true);
   setupSelectControl("parent_from_champion_pool_chance", "parent_from_champion_pool_chance", true);
 
-  // Pool size controls
   setupSelectControl("champion_pool_size", "champion_pool_size", false);
   setupSelectControl("drift_pool_size", "drift_pool_size", false);
   setupSelectControl("drift_range", "drift_range", true);
