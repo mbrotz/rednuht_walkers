@@ -387,30 +387,78 @@ Walker.prototype.simulationStep = function(motor_noise) {
 }
 
 Walker.prototype.makeName = function(genome) {
-  var name = '';
-  var vowels = ['a','e','i','o','u','y']; // Added 'y'
+  var vowels = ['a','e','i','o','u','y'];
   var consonants = ['b','c','d','f','g','h','j','k','l','m','n','p','r','s','t','v','w','x','z'];
-  var name_length = Math.max(4, Math.min(8, Math.floor(genome.length / 1.5))); // Name length based on genome
-  var use_vowel = Math.random() < 0.5;
 
-  for(var k = 0; k < name_length; k++) {
-    var sum = 0;
-    // Use a portion of the genome for each letter to vary names more
-    var gene_index = k % genome.length;
-    for(var l_prop in genome[gene_index]) {
-      if(genome[gene_index].hasOwnProperty(l_prop) && typeof genome[gene_index][l_prop] === 'number') {
-        sum += (genome[gene_index][l_prop]*100); // Increased multiplier for more variance
+  // Helper function to generate one part of the name (genus or species)
+  var generateNamePart = function(genome_source, length, capitalizeFirst, gene_start_offset) {
+    var name_part = '';
+    // Randomly decide if starting with a vowel or consonant for this part
+    var use_vowel = Math.random() < 0.5;
+
+    for (var i = 0; i < length; i++) {
+      var sum = 0;
+      // Determine the gene index to use, incorporating an offset
+      // to ensure different parts of the genome are sampled for genus vs. species.
+      var gene_index = (gene_start_offset + i) % genome_source.length;
+      
+      var current_gene = genome_source[gene_index];
+      if (current_gene) { // Ensure the gene exists
+        for (var prop in current_gene) {
+          if (current_gene.hasOwnProperty(prop) && typeof current_gene[prop] === 'number') {
+            // Using a slightly different multiplier based on offset to add variance
+            sum += (current_gene[prop] * (100 + (gene_start_offset % 13))); // e.g. % 13 for a prime
+          }
+        }
       }
-    }
-    sum = Math.abs(Math.floor(sum));
+      sum = Math.abs(Math.floor(sum));
 
-    if(use_vowel) {
-      name += vowels[sum%vowels.length];
-    } else {
-      name += consonants[sum%consonants.length];
+      var char_to_add;
+      if (use_vowel) {
+        char_to_add = vowels[sum % vowels.length];
+      } else {
+        char_to_add = consonants[sum % consonants.length];
+      }
+
+      if (i === 0 && capitalizeFirst) {
+        name_part += char_to_add.toUpperCase();
+      } else {
+        name_part += char_to_add;
+      }
+      use_vowel = !use_vowel; // Alternate for the next character
     }
-    use_vowel = !use_vowel; // Alternate
-    if (k === 0) name = name.toUpperCase(); // Capitalize first letter
+    return name_part;
+  };
+
+  // Handle cases where the genome might be unexpectedly empty
+  if (!genome || genome.length === 0) {
+    return "Genomi Anonymi"; // A fallback name
   }
-  return name;
-}
+
+  // Determine lengths for genus and species names
+  var min_name_len = 3; // Minimum length for any name part to look somewhat substantial
+  var max_genus_len = 6;
+  var max_species_len = 8;
+
+  // Base lengths on genome size, ensuring they are within bounds
+  // The `+1` or `+2` helps ensure a decent length even for smaller genomes.
+  var genus_length = Math.max(min_name_len, Math.min(max_genus_len, Math.floor(genome.length / 2.5) + 1));
+  var species_length = Math.max(min_name_len, Math.min(max_species_len, Math.floor(genome.length / 2) + 2));
+  
+  // Generate genus name: starts from gene index 0
+  var genus_name = generateNamePart(genome, genus_length, true, 0);
+
+  // Generate species name: starts from a different part of the genome
+  // Offset by roughly a third or half of the genome length to use different genes.
+  var species_offset = Math.floor(genome.length / 3);
+  if (genome.length <= 2 && genome.length > 0) { // If genome is very short, ensure offset is at least 1 if possible
+      species_offset = 1;
+  } else if (genome.length === 0) { // Should be caught by earlier check, but defensive
+      species_offset = 0;
+  }
+
+
+  var species_name = generateNamePart(genome, species_length, false, species_offset);
+
+  return genus_name + " " + species_name;
+};
