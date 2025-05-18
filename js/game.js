@@ -10,13 +10,7 @@ config = {
   max_motor_speed: 2,
   mutation_chance: 0.1,
   mutation_amount: 0.5,
-  // walker_health: 300, // Removed
-  // fitness_criterium: 'score', // Removed
-  // check_health: true, // Removed
   max_floor_tiles: 50,
-  // min_body_delta: 1.4, // Removed
-  // min_leg_delta: 0.4, // Removed
-  // instadeath_delta: 0.4, // Removed
   population_size: 40,
   champion_pool_size: 5,
   population_selection_pressure: 3,
@@ -24,30 +18,46 @@ config = {
   drift_range: 0.25,
   parent_from_population_chance: 0.25,
   parent_from_champion_pool_chance: 0.25,
-
-  // New "Persistent Pursuit & Performance Metric" parameters
-  max_reasonable_head_height: 2.2, // Optimal upright head Y position for normalization.
-  min_posture_contribution: 0.3,   // Minimum multiplier from posture (0.0 to 1.0).
-  pressure_line_starting_offset: 0.75, // How far behind the walker the pressure line starts.
-  pressure_line_base_speed: 0.002,     // Per step, e.g., 0.002 units/step.
-  pressure_line_acceleration_factor: 0.00001 // Per step^2, e.g., 0.00001 units/step^2.
+  max_reasonable_head_height: 2.2,
+  pressure_line_starting_offset: 0.75,
+  pressure_line_base_speed: 0.005,
+  pressure_line_acceleration_factor: 0.0,
+  max_steps_without_improvement: 240,
+  head_floor_collision_kills: false,
 };
 
 globals = {};
+
+function HeadFloorContactListener() {}
+HeadFloorContactListener.prototype = new b2.ContactListener();
+HeadFloorContactListener.prototype.constructor = HeadFloorContactListener;
+
+HeadFloorContactListener.prototype.BeginContact = function(contact) {
+    if (config.head_floor_collision_kills) {
+      var userDataA = contact.GetFixtureA().GetUserData();
+      var userDataB = contact.GetFixtureB().GetUserData();
+      if (userDataA && userDataB) {
+          if (userDataA.isHead && userDataB.isFloor) {
+              userDataA.walker.is_eliminated = true;
+          } else if (userDataA.isFloor && userDataB.isHead) {
+              userDataB.walker.is_eliminated = true;
+          }
+      }
+    }
+};
 
 gameInit = function() {
   interfaceSetup();
 
   globals.world = new b2.World(new b2.Vec2(0, -10));
-  
+  globals.world.SetContactListener(new HeadFloorContactListener());
   globals.walker_id_counter = 0;
   globals.champion_genomes = []; 
   globals.drift_genomes = [];   
   globals.last_record = 0;    
-
   globals.walkers = createPopulation(); 
-
   globals.floor = createFloor();
+  
   drawInit();
 
   setQuote(); 
@@ -61,6 +71,16 @@ gameInit = function() {
 }
 
 simulationStep = function() {
+    if (config.draw_fps > 0) {
+      simulationSingleStep();
+    } else {
+      for (var i = 0; i < 10; i++) {
+        simulationSingleStep();
+      }
+    }
+}
+
+simulationSingleStep = function() {
   globals.world.Step(1/config.time_step, config.velocity_iterations, config.position_iterations);
   globals.world.ClearForces();
   populationSimulationStep();
@@ -108,10 +128,9 @@ populationSimulationStep = function() {
     } else { 
       if(!globals.walkers[k].processed_after_elimination) { 
         var eliminatedWalker = globals.walkers[k];
-        var eliminatedWalkerScore = eliminatedWalker.fitness_score; // Unified fitness_score
+        var eliminatedWalkerScore = eliminatedWalker.fitness_score; 
         var eliminatedWalkerGenome = JSON.parse(JSON.stringify(eliminatedWalker.genome));
 
-        // Scores can be negative. last_record can also become negative.
         if(eliminatedWalkerScore > globals.last_record) {
           globals.last_record = eliminatedWalkerScore;
           printChampion(eliminatedWalker); 
@@ -123,13 +142,8 @@ populationSimulationStep = function() {
           }
         }
 
-        // Drift pool logic might need care if last_record is negative or very small.
-        // For now, assuming it handles it or the threshold is met appropriately.
-        // If last_record is 0, threshold is 0. If last_record is positive, works as before.
-        // If last_record is negative, (1-drift_range)*last_record will be less negative (closer to 0).
-        // A score must be MORE positive (or less negative) than this threshold.
-        if (config.drift_pool_size > 0 && // only if drift pool is enabled
-            (globals.last_record > 0 || eliminatedWalkerScore > 0) && // ensure some positive progress for drift meaningfulness
+        if (config.drift_pool_size > 0 && 
+            (globals.last_record > 0 || eliminatedWalkerScore > 0) && 
             eliminatedWalkerScore >= (1 - config.drift_range) * globals.last_record) {
           
           globals.drift_genomes.unshift({genome: eliminatedWalkerGenome, score: eliminatedWalkerScore});
@@ -182,7 +196,7 @@ pickParentGenome = function() {
   if (Math.random() < config.parent_from_population_chance) {
     var living_walkers_indices = [];
     for(var i=0; i < globals.walkers.length; i++) {
-      if(globals.walkers[i] && !globals.walkers[i].is_eliminated) { // Check for not eliminated
+      if(globals.walkers[i] && !globals.walkers[i].is_eliminated) { 
         living_walkers_indices.push(i);
       }
     }
@@ -194,7 +208,7 @@ pickParentGenome = function() {
         var candidate_walker_index = living_walkers_indices[random_living_index_in_array];
         var candidate_walker = globals.walkers[candidate_walker_index];
 
-        if (!best_walker_in_tournament || candidate_walker.fitness_score > best_walker_in_tournament.fitness_score) { // Use fitness_score
+        if (!best_walker_in_tournament || candidate_walker.fitness_score > best_walker_in_tournament.fitness_score) { 
           best_walker_in_tournament = candidate_walker;
         }
       }
@@ -247,18 +261,18 @@ cloneAndMutate = function(parent_genome) {
   }
 
   var new_genome = JSON.parse(JSON.stringify(parent_genome));
-  for (var k = 0; k < new_genome.length; k++) {
-    for (var g_prop in new_genome[k]) {
-      if (new_genome[k].hasOwnProperty(g_prop)) {
-        if (Math.random() < config.mutation_chance) {
-          new_genome[k][g_prop] = new_genome[k][g_prop] * (1 + config.mutation_amount * (Math.random() * 2 - 1));
+  var mutated = false;
+  while (!mutated) {
+    for (var k = 0; k < new_genome.length; k++) {
+      for (var g_prop in new_genome[k]) {
+        if (new_genome[k].hasOwnProperty(g_prop)) {
+          if (Math.random() < config.mutation_chance) {
+            new_genome[k][g_prop] = new_genome[k][g_prop] * (1 + config.mutation_amount * (Math.random() * 2 - 1));
+            mutated = true;
+          }
         }
       }
     }
   }
   return new_genome;
-}
-
-getInterfaceValues = function() {
-  // This function is largely superseded by direct updates in interface.js for new controls
 }

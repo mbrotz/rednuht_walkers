@@ -1,6 +1,3 @@
-// walker has fixed shapes and structures
-// shape definitions are in the constructor
-
 
 var Walker = function() {
   this.__constructor.apply(this, arguments);
@@ -12,24 +9,18 @@ Walker.prototype.__constructor = function(world, genome) {
 
   this.density = 106.2; 
 
-  this.local_step_counter = 0; // Represents "Steps_Lived_So_Far"
+  this.local_step_counter = 0;
 
-  this.max_distance = -5; // Still useful for camera or other non-scoring logic
-  // this.health = config.walker_health; // Removed
-  // this.score = 0; // Removed, using this.fitness_score
-  // this.low_foot_height = 0; // Removed
-  // this.head_height = 0; // Removed (calculated live)
-  // this.steps = 0; // Removed (old step bonus counter)
+  this.max_distance = -5; 
   this.id = 0; 
-  // this.is_dead = false; // Removed
 
-  // New properties for "Persistent Pursuit & Performance Metric"
   this.is_eliminated = false;
-  this.processed_after_elimination = false; // Flag to ensure one-time processing after elimination
-  this.initial_torso_center_x = 0;    // Will be set after body creation
-  this.pressure_line_x_position = 0;  // Will be initialized based on initial_torso_center_x
-  this.sum_normalized_head_heights = 0.0;
-  this.fitness_score = 0.0;           // Unified live fitness score, becomes final on elimination
+  this.processed_after_elimination = false; 
+  this.initial_torso_center_x = 0;
+  this.max_torso_center_x = 0;
+  this.pressure_line_x_position = 0;
+  this.steps_without_improvement = 0;
+  this.fitness_score = 0.0;
 
   this.bd = new b2.BodyDef();
   this.bd.type = b2.Body.b2_dynamicBody;
@@ -81,16 +72,13 @@ Walker.prototype.__constructor = function(world, genome) {
   this.right_leg = this.createLeg();
   this.left_arm = this.createArm();
   this.right_arm = this.createArm();
-  this.head = this.createHead();
+  this.head = this.createHead(); // Head fixture is tagged inside this method
   this.connectParts();
 
   this.bodies = this.getBodies();
 
-  // Initialize pressure line start point after bodies are created
-  // Using upper_torso as the main torso reference point
   this.initial_torso_center_x = this.torso.upper_torso.GetPosition().x;
   this.pressure_line_x_position = this.initial_torso_center_x - config.pressure_line_starting_offset;
-
 
   if(genome) {
     this.genome = JSON.parse(JSON.stringify(genome));
@@ -212,15 +200,16 @@ Walker.prototype.createHead = function() {
   neck.CreateFixture(this.fd);
 
   this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height + this.head_def.neck_height + this.head_def.head_height/2);
-  var head = this.world.CreateBody(this.bd);
+  var headBody = this.world.CreateBody(this.bd); // Renamed to headBody to avoid conflict with this.head
 
   this.fd.shape.SetAsBox(this.head_def.head_width/2, this.head_def.head_height/2);
-  head.CreateFixture(this.fd);
+  var headFixture = headBody.CreateFixture(this.fd);
+  headFixture.SetUserData({ isHead: true, walker: this }); // Tag the head fixture
 
   var jd = new b2.RevoluteJointDef();
   var position = neck.GetPosition().Clone();
   position.y += this.head_def.neck_height/2;
-  jd.Initialize(head, neck, position);
+  jd.Initialize(headBody, neck, position);
   jd.lowerAngle = -0.1;
   jd.upperAngle = 0.1;
   jd.enableLimit = true;
@@ -229,7 +218,7 @@ Walker.prototype.createHead = function() {
   jd.enableMotor = true;
   this.joints.push(this.world.CreateJoint(jd));
 
-  return {head: head, neck: neck};
+  return {head: headBody, neck: neck}; // Return the bodies
 }
 
 Walker.prototype.connectParts = function() {
@@ -327,7 +316,6 @@ Walker.prototype.simulationStep = function(motor_noise) {
     return;
   }
 
-  // Motor control (existing logic)
   for(var k = 0; k < this.joints.length; k++) {
     if (this.genome[k]) {
       var amp = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].cos_factor;
@@ -337,52 +325,35 @@ Walker.prototype.simulationStep = function(motor_noise) {
     }
   }
 
-  // --- Persistent Pursuit & Performance Metric ---
-
-  // 1. Current Progress Score (Base)
-  // Using upper_torso as the main torso reference point, consistent with initialization
   var current_torso_x = this.torso.upper_torso.GetPosition().x;
-  var current_progress_score = current_torso_x;
+  var movement_progress = Math.max(0.0, current_torso_x - this.max_torso_center_x);
 
-  // 2. Lifetime Average Normalized Head Height Modifier
-  var current_head_y = this.head.head.GetPosition().y;
-  var instantaneous_normalized_head_height = Math.min(1.0, Math.max(0.0, current_head_y / config.max_reasonable_head_height));
-  
-  this.sum_normalized_head_heights += instantaneous_normalized_head_height;
-  
-  var steps_lived = this.local_step_counter + 1; // local_step_counter is 0-indexed for first step it's about to complete
-  var current_avg_normalized_head_height = (steps_lived > 0) ? (this.sum_normalized_head_heights / steps_lived) : 0.0;
-  
-  var effective_posture_modifier = config.min_posture_contribution + ((1.0 - config.min_posture_contribution) * current_avg_normalized_head_height);
+  if (movement_progress > 0.0) {
+    var current_head_y = this.head.head.GetPosition().y;
+    var normalized_head_y = Math.min(1.0, Math.max(0.0, current_head_y / config.max_reasonable_head_height));
 
-  // 3. Current Live Fitness Score
-  this.fitness_score = current_progress_score * effective_posture_modifier;
+    var effective_posture_modifier = (1.0 + normalized_head_y) * (1.0 + normalized_head_y);
 
-  // Update Advancing Pressure Line
-  // steps_lived here should be consistent with its use in avg head height.
-  // If local_step_counter starts at 0, then for the Nth step (1-indexed), local_step_counter is N-1.
-  // The formula uses Steps_Lived. If a walker is on its first step, Steps_Lived = 1.
-  // local_step_counter is incremented at the end. So for the calculation, use (this.local_step_counter).
-  // If it means "number of steps *completed*", then on step 0, completed_steps = 0. On step 1, completed_steps = 1.
-  // Let's use `this.local_step_counter` for `Steps_Lived` in the formula, assuming it's effectively `current_step_number - 1`
-  // or "number of previous full steps lived". The original prompt formulation was `Steps_Lived`.
-  // If `local_step_counter` is 0 on the first frame, then `Pressure_Line_X_Position_at_step_0` (initial state before any step)
-  // would be `(Initial_Torso_Center_X - Starting_Offset)`. This seems correct.
+    this.fitness_score += movement_progress * effective_posture_modifier;
+    this.steps_without_improvement = 0;
+  } else {
+    this.steps_without_improvement++;
+    if (this.steps_without_improvement >= config.max_steps_without_improvement) {
+      this.is_eliminated = true;
+    }
+  }
+
   var pressure_steps = this.local_step_counter;
   this.pressure_line_x_position = (this.initial_torso_center_x - config.pressure_line_starting_offset) + 
                                   (config.pressure_line_base_speed * pressure_steps) + 
                                   (config.pressure_line_acceleration_factor * pressure_steps * pressure_steps);
 
-  // Elimination Trigger
   if (current_torso_x <= this.pressure_line_x_position) {
     this.is_eliminated = true;
-    // this.fitness_score is already up-to-date and will serve as the final score.
   }
 
-  // Update max_distance (still useful for camera)
-  this.max_distance = Math.max(this.max_distance, current_torso_x);
-
-  // Increment step counter (for next frame's calculations and pressure line advancement)
+  this.max_torso_center_x = Math.max(this.max_torso_center_x, current_torso_x);
+  this.max_distance = this.max_torso_center_x;
   this.local_step_counter++;
 }
 
@@ -445,7 +416,7 @@ Walker.prototype.makeName = function(genome) {
     species_offset = 0;
   }
 
-  var species_name = generateNamePart(genome, species_length, false, species_offset);
+  var species_name = generateNamePart(genome, species_length, true, species_offset);
 
   return genus_name + " " + species_name;
 };

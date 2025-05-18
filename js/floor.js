@@ -13,10 +13,10 @@ function createFloor() {
 
   for(var k = 2; k < config.max_floor_tiles; k++) {
     var ratio = k/config.max_floor_tiles;
-//    edges.push(new b2.Vec2(edges[edges.length-1].x + (1  + ratio * Math.random() - ratio/2), edges[edges.length-1].y + (ratio * Math.random() - ratio/2 )));
     edges.push(new b2.Vec2(edges[edges.length-1].x + 1,-0.16));
   }
   fix_def.shape.CreateChain(edges, edges.length);
-  body.CreateFixture(fix_def);
+  var floorFixtureInstance = body.CreateFixture(fix_def);
+  floorFixtureInstance.SetUserData({ isFloor: true });
   return body;
 }

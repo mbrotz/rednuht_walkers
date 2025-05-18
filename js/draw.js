@@ -54,24 +54,13 @@ drawFloor = function() {
 }
 
 drawWalker = function(walker) {
-  // Color based on average normalized head height
-  var steps_lived = walker.local_step_counter; // Already incremented for current frame, or 0 if first frame
-  var current_avg_normalized_head_height = 0.5; // Default if no steps yet or sum is undefined
-  if (steps_lived > 0 && walker.sum_normalized_head_heights !== undefined) {
-      // Use local_step_counter from previous step for average as sum_normalized_head_heights is for current step
-      var effective_steps_for_avg = walker.local_step_counter; 
-      if (walker.local_step_counter === 0 && walker.sum_normalized_head_heights > 0) { // First step completed
-          effective_steps_for_avg = 1;
-      }
-      if (effective_steps_for_avg > 0) {
-        current_avg_normalized_head_height = walker.sum_normalized_head_heights / effective_steps_for_avg;
-      }
-  }
-  current_avg_normalized_head_height = Math.min(1.0, Math.max(0.0, current_avg_normalized_head_height));
-
-
-  var brightness_factor = 40 + 50 * current_avg_normalized_head_height; // From 40% to 90%
-  var saturation_factor = 30 + 40 * current_avg_normalized_head_height; // From 30% to 70%
+  
+  var current_torso_x = walker.torso.upper_torso.GetPosition().x;
+  var pressure_line_distance = current_torso_x - walker.pressure_line_x_position;
+  var normalized_distance = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
+  
+  var brightness_factor = 40 + 50 * normalized_distance; // From 40% to 90%
+  var saturation_factor = 30 + 40 * normalized_distance; // From 30% to 70%
   
   globals.ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
   globals.ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";

@@ -18,7 +18,7 @@ quotes = [
   "Evolution: a story written in the language of DNA.",
   "Darwin's legacy: understanding life's unfolding.",
   "The beauty of evolution is in its imperfections and its progress.",
-  "From primordial soup to… well, *this*."
+  "From primordial soup to... well, *this*."
 ];
 
 printNames = function(walkers) {
