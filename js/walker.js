@@ -18,7 +18,6 @@ Walker.prototype.__constructor = function(world, genome) {
     this.processed_after_elimination = false; 
     this.initial_torso_center_x = 0;
     this.max_torso_center_x = 0;
-    this.pressure_line_x_position = 0;
     this.steps_without_improvement = 0;
     this.fitness_score = 0.0;
 
@@ -79,6 +78,7 @@ Walker.prototype.__constructor = function(world, genome) {
 
     this.initial_torso_center_x = this.torso.upper_torso.GetPosition().x;
     this.pressure_line_x_position = this.initial_torso_center_x - config.pressure_line_starting_offset;
+    this.pressure_line_speed = config.pressure_line_base_speed;
 
     if(genome) {
         this.genome = JSON.parse(JSON.stringify(genome));
@@ -302,11 +302,16 @@ Walker.prototype.createGenome = function(joints, bodies) {
     var num_motorized_joints = this.joints.length; 
 
     for(var k = 0; k < num_motorized_joints; k++) {
-        var gene = {}; 
-        gene.cos_factor = 6*Math.random() - 3; 
-        gene.time_factor = Math.random()/10;   
-        gene.time_shift = Math.random()*Math.PI*2 
-        genome.push(gene);
+        let max_torque = this.joints[k].GetMaxMotorTorque();
+        genome.push({
+          //cos_factor: Math.random() * 6 - 3,
+          //time_factor: Math.random() / 10,
+          //time_shift: Math.random() * Math.PI * 2,
+          cos_factor: gaussianRandom(0, 3),
+          time_factor: gaussianRandom(0.1, 0.1),
+          time_shift: gaussianRandom(Math.PI, Math.PI * 2),
+          max_motor_torque: gaussianRandom(max_torque, max_torque * 0.2),
+        });
     }
     return genome;
 }
@@ -318,9 +323,15 @@ Walker.prototype.simulationStep = function(motor_noise) {
 
     for(var k = 0; k < this.joints.length; k++) {
         if (this.genome[k]) {
-            var amp = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].cos_factor;
-            var phase = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_shift;
-            var freq = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_factor;
+            //var amp = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].cos_factor;
+            //var phase = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_shift;
+            //var freq = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_factor;
+            //this.joints[k].SetMotorSpeed(amp * Math.cos(phase + freq * this.local_step_counter));
+            let amp = this.genome[k].cos_factor;
+            let phase = this.genome[k].time_shift;
+            let freq = this.genome[k].time_factor;
+            let max_torque = this.genome[k].max_motor_torque;
+            //this.joints[k].SetMaxMotorTorque(max_torque);
             this.joints[k].SetMotorSpeed(amp * Math.cos(phase + freq * this.local_step_counter));
         }
     }
@@ -342,11 +353,13 @@ Walker.prototype.simulationStep = function(motor_noise) {
             this.is_eliminated = true;
         }
     }
+    
+    if (current_torso_x > config.max_floor_x) {
+        this.is_eliminated = true;
+    }
 
-    var pressure_steps = this.local_step_counter;
-    this.pressure_line_x_position = (this.initial_torso_center_x - config.pressure_line_starting_offset) + 
-    (config.pressure_line_base_speed * pressure_steps) + 
-    (config.pressure_line_acceleration_factor * pressure_steps * pressure_steps);
+    this.pressure_line_x_position += this.pressure_line_speed;
+    this.pressure_line_speed += config.pressure_line_acceleration;
 
     if (current_torso_x <= this.pressure_line_x_position) {
         this.is_eliminated = true;

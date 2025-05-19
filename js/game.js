@@ -6,21 +6,20 @@ config = {
     velocity_iterations: 8,
     position_iterations: 3,
     max_zoom_factor: 130,
-    min_motor_speed: -2,
-    max_motor_speed: 2,
-    mutation_chance: 0.1,
-    mutation_amount: 0.5,
-    max_floor_tiles: 50,
+    mutation_chance: 1,
+    mutation_amount: 0.05,
+    max_floor_tiles: 200,
     population_size: 40,
-    base_pool_threshold: 0.25,
-    num_broad_spectrum_tiers: 20,
-    num_elite_refinement_tiers: 5,
-    capacity_per_tier: 10,
+    genepool_threshold: 0.25,
+    genepool_tiers: 40,
+    genepool_tier_capacity: 10,
+    genepool_range_decay: 0.9,
+    genepool_selection_pressure: 10.0,
     record_history_display_limit: 40,
-    max_reasonable_head_height: 2.2,
-    pressure_line_starting_offset: 0.75,
-    pressure_line_base_speed: 0.005,
-    pressure_line_acceleration_factor: 0.0,
+    max_reasonable_head_height: 1.5,
+    pressure_line_starting_offset: 1.75,
+    pressure_line_base_speed: 0.001,
+    pressure_line_acceleration: 0.000001,
     max_steps_without_improvement: 240,
     head_floor_collision_kills: false,
 };
@@ -140,7 +139,7 @@ populationSimulationStep = function() {
                     }
                 }
 
-                globals.genepool.addGenome(eliminatedWalkerGenome, eliminatedWalkerScore, globals.last_record);
+                globals.genepool.addGenome(eliminatedWalkerGenome, eliminatedWalkerScore);
 
                 for(var l = 0; l < eliminatedWalker.bodies.length; l++) {
                     if(eliminatedWalker.bodies[l]) {
@@ -206,7 +205,8 @@ cloneAndMutate = function(parent_genome) {
         for (var g_prop in new_genome[k]) {
             if (new_genome[k].hasOwnProperty(g_prop)) {
                 if (Math.random() < config.mutation_chance) {
-                    new_genome[k][g_prop] = new_genome[k][g_prop] * (1 + config.mutation_amount * (Math.random() * 2 - 1));
+                    //new_genome[k][g_prop] = new_genome[k][g_prop] * (1 + config.mutation_amount * (Math.random() * 2 - 1));
+                    new_genome[k][g_prop] = new_genome[k][g_prop] * gaussianRandom(1, config.mutation_amount);
                     mutated = true;
                 }
             }

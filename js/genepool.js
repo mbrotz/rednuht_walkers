@@ -1,65 +1,59 @@
+
+function gaussianRandom(mean = 0, stdev = 1) {
+    const u = 1 - Math.random();
+    const v = Math.random();
+    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    return z * stdev + mean;
+}
+
 var GenePool = function() {
     this.__constructor.apply(this, arguments);
 }
 
 GenePool.prototype.__constructor = function(config) {
-    this.base_pool_threshold = config.base_pool_threshold;
-    this.num_broad_spectrum_tiers = config.num_broad_spectrum_tiers;
-    this.num_elite_refinement_tiers = config.num_elite_refinement_tiers;
-    this.num_total_tiers = this.num_broad_spectrum_tiers + this.num_elite_refinement_tiers;
-    this.capacity_per_tier = config.capacity_per_tier;
+    this.threshold = config.genepool_threshold;
+    this.range = 1.0 - config.genepool_threshold;
+    this.num_tiers = config.genepool_tiers;
+    this.tier_capacity = config.genepool_tier_capacity;
+    this.range_decay = config.genepool_range_decay;
+    this.selection_pressure = config.genepool_selection_pressure;
     
     this.start_score = 0.0;
     this.current_record_score = 0.0;
     this.tiers = [];
     
-    var index = 0;
-    var elite_tier_threshold = this.base_pool_threshold;
-    var elite_tier_gap = 1.0 - elite_tier_threshold;
-    if (this.num_broad_spectrum_tiers > 0) {
-        let broad_range = 1.0 - this.base_pool_threshold;
-        let per_tier_increment = broad_range / this.num_broad_spectrum_tiers;
-        var last_threshold;
-        for (var i = 0; i < this.num_broad_spectrum_tiers; i++) {
-            last_threshold = this.base_pool_threshold + per_tier_increment * i;
-            this.tiers.push({
-                index: index++,
-                elite: false,
-                low: last_threshold,
-                high: 0.0,
-                low_score: 0.0,
-                high_score: 0.0,
-                sum_score: 0.0,
-                mean_score: 0.0,
-                entries: [],
-            });
-        }
-        elite_tier_gap = (1.0 - last_threshold) / 2.0;
-        elite_tier_threshold = last_threshold + elite_tier_gap;
+    var current_range = this.range;
+    for (var i = 0; i < this.num_tiers; i++) {
+        this.tiers.push({
+            index: i,
+            is_lowest: i == 0,
+            is_highest: i == this.num_tiers - 1,
+            range: current_range,
+            low: 0.0,
+            high: 0.0,
+            low_score: 0.0,
+            high_score: 0.0,
+            sum_score: 0.0,
+            mean_score: 0.0,
+            entries: [],
+        });
+        current_range *= this.range_decay;
     }
-    if (this.num_elite_refinement_tiers > 0) {
-        for (var i = 0; i < this.num_elite_refinement_tiers; i++) {
-            this.tiers.push({
-                index: index++,
-                elite: true,
-                low: elite_tier_threshold,
-                high: 0.0,
-                low_score: 0.0,
-                high_score: 0.0,
-                sum_score: 0.0,
-                mean_score: 0.0,
-                entries: [],
-            });
-            elite_tier_gap *= 0.5;
-            elite_tier_threshold += elite_tier_gap;
-        }
+    var range_sum = 0.0;
+    for (var i = 0; i < this.num_tiers; i++) {
+        range_sum += this.tiers[i].range;
     }
-    if (this.num_total_tiers > 0) {
-        for (var i = 0; i < this.num_total_tiers - 1; i++) {
-            this.tiers[i].high = this.tiers[i+1].low;
-        }
-        this.tiers[this.num_total_tiers - 1].high = 1.0;
+    for (var i = 0; i < this.num_tiers; i++) {
+        this.tiers[i].range /= range_sum;
     }
+    var current_threshold = this.threshold;
+    for (var i = 0; i < this.num_tiers; i++) {
+        let tier = this.tiers[i];
+        tier.low = current_threshold;
+        current_threshold += this.range * tier.range;
+        tier.high = current_threshold;
+    }
+    this.tiers[this.num_tiers-1].high = 1.0;
 };
 
 GenePool.prototype._update_mean = function(tier_index, delta) {
@@ -94,14 +88,16 @@ GenePool.prototype._find_lowest_performing_entry = function(tier_index) {
     return index;
 }
 
-GenePool.prototype._remove_lowest_performing_entry = function(tier_index) {
+GenePool.prototype._remove_lowest_performing_entry = function(tier_index, min_score = undefined) {
     let index = this._find_lowest_performing_entry(tier_index);
     if (index >= 0) {
         let tier = this.tiers[tier_index];
         let entry = tier.entries[index];
-        tier.entries.splice(index, 1);
-        this._update_mean(tier_index, -entry.score);
-        return entry;
+        if (min_score === undefined || entry.score <= min_score) {
+            tier.entries.splice(index, 1);
+            this._update_mean(tier_index, -entry.score);
+            return entry;
+        }
     }
     return null;
 }
@@ -123,7 +119,7 @@ GenePool.prototype._adjust_entry = function(tier_index, entry) {
     for (var i = tier_index; i >= 0; i--) {
         let tier = this.tiers[i];
         if (entry.score >= tier.low_score && entry.score < tier.high_score) {
-            if (tier.entries.length < this.capacity_per_tier) {
+            if (tier.entries.length < this.tier_capacity) {
                 tier.entries.push(entry);
                 this._update_mean(i, entry.score);
                 return i;
@@ -144,7 +140,7 @@ GenePool.prototype._adjust_entry = function(tier_index, entry) {
 }
 
 GenePool.prototype._adjust_entries = function() {
-    for (var i = 0; i < this.num_total_tiers; i++) {
+    for (var i = 0; i < this.num_tiers; i++) {
         let tier = this.tiers[i];
         for (var j = tier.entries.length-1; j >= 0; j--) {
             let removed_entry = tier.entries[j];
@@ -161,9 +157,9 @@ GenePool.prototype._adjust_tiers = function(score) {
     if (score <= 0.0 || this.current_record_score >= score) {
         return;
     }
-    this.start_score = this.base_pool_threshold * score;
+    this.start_score = this.threshold * score;
     this.current_record_score = score;
-    for (var i = 0; i < this.num_total_tiers; i++) {
+    for (var i = 0; i < this.num_tiers; i++) {
         let tier = this.tiers[i];
         tier.low_score = tier.low * score;
         tier.high_score = tier.high * score;
@@ -172,53 +168,108 @@ GenePool.prototype._adjust_tiers = function(score) {
 };
 
 GenePool.prototype._place_genome = function(genome, score) {
-    for (var i = this.num_total_tiers - 1; i >= 0; i--) {
+    var next_tier = null;
+    for (var i = this.num_tiers - 1; i >= 0; i--) {
         let tier = this.tiers[i];
         if (score >= tier.low_score) {
-            if (tier.entries.length >= this.capacity_per_tier) {
-                //this._remove_lowest_performing_entry(i);
-                this._remove_oldest_entry(i);
+            if (tier.entries.length >= this.tier_capacity) {
+                if (tier.is_highest || (next_tier && next_tier.entries.length < this.tier_capacity)) {
+                    let removed_entry = this._remove_lowest_performing_entry(i, score);
+                    if (removed_entry === null)
+                        return -1;
+                } else {
+                    this._remove_oldest_entry(i);
+                }
             }
             tier.entries.push({ genome: JSON.stringify(genome), score: score });
             this._update_mean(i, score);
             return i;
         }
+        next_tier = tier;
     }
     return -1;
 }
 
 GenePool.prototype.addGenome = function(genome, score) {
-    if (this.num_total_tiers === 0 || this.capacity_per_tier === 0) {
+    if (this.num_tiers === 0 || this.tier_capacity === 0) {
         return -1;
     }
     this._adjust_tiers(score);
     return this._place_genome(genome, score);
 };
 
-GenePool.prototype._selectParentEntry = function(eligible_tiers) {
-    let selected_tier_index = eligible_tiers[Math.floor(Math.random() * eligible_tiers.length)];
-    let selected_tier = this.tiers[selected_tier_index];
+GenePool.prototype._selectEligibleTiers = function() {
+    let result = [];
+    for (var i = 0; i < this.num_tiers; i++) {
+        if (this.tiers[i].entries.length > 0) {
+            result.push({index: i, tier: this.tiers[i]});
+        }
+    }
+    if (result.length <= 1) {
+        return result;
+    }
+    let rank_increment = 1.0 / (result.length - 1) * Math.max(0.0, this.selection_pressure - 1.0);
+    var rank_sum = 0.0;
+    for (var i = 0; i < result.length; i++) {
+        let rank = 1.0 + rank_increment * i;
+        result[i].rank = rank;
+        rank_sum += rank;
+    }
+    for (var i = 0; i < result.length; i++) {
+        result[i].weight = result[i].rank / rank_sum;
+    }
+    return result;
+}
+
+GenePool.prototype._selectParentEntryUniform = function(selected_tier) {
+    if (selected_tier === null || selected_tier.entries.length == 0) {
+        return null;
+    }
+    if (selected_tier.entries.length == 1) {
+        return selected_tier.entries[0];
+    }
     let selected_entry_index = Math.floor(Math.random() * selected_tier.entries.length); 
-    let selected_entry = selected_tier.entries[selected_entry_index];
-    return selected_entry;
+    return selected_tier.entries[selected_entry_index];
+}
+
+GenePool.prototype._selectEligibleTierUniform = function(eligible_tiers) {
+    if (eligible_tiers.length == 0) {
+        return null;
+    }
+    if (eligible_tiers.length == 1) {
+        return eligible_tiers[0].tier;
+    }
+    let selected_tier_index = Math.floor(Math.random() * eligible_tiers.length);
+    return eligible_tiers[selected_tier_index].tier;
+}
+
+GenePool.prototype._selectEligibleTierWeighted = function(eligible_tiers) {
+    if (eligible_tiers.length == 0) {
+        return null;
+    }
+    if (eligible_tiers.length == 1) {
+        return eligible_tiers[0].tier;
+    }
+    let random_value = Math.random();
+    var sum = 0.0;
+    for (var i = 0; i < eligible_tiers.length; i++) {
+        let weight = eligible_tiers[i].weight;
+        if (random_value >= sum && random_value < sum + weight) {
+            return eligible_tiers[i].tier;
+        }
+        sum += weight;
+    }
+    return eligible_tiers[eligible_tiers.length-1].tier;
 }
 
 GenePool.prototype.selectParentGenome = function() {
-    if (this.num_total_tiers === 0 || this.capacity_per_tier === 0) {
+    if (this.num_tiers === 0 || this.tier_capacity === 0) {
         return null;
     }
-    let eligible_tiers = [];
-    for (var i = 0; i < this.num_total_tiers; i++) {
-        if (this.tiers[i].entries.length > 0) { 
-            eligible_tiers.push(i);
-        }
-    }
-    if (eligible_tiers.length === 0) {
-        return null;
-    }
-    let parent1 = this._selectParentEntry(eligible_tiers);
-    let parent2 = this._selectParentEntry(eligible_tiers);
-    if (parent1.score > parent2.score)
-        return JSON.parse(parent1.genome);
-    return JSON.parse(parent2.genome);
+    let eligible_tiers = this._selectEligibleTiers();
+    let selected_tier = this._selectEligibleTierWeighted(eligible_tiers);
+    let selected_parent = this._selectParentEntryUniform(selected_tier);
+    if (selected_parent !== null)
+        return JSON.parse(selected_parent.genome);
+    return null;
 };

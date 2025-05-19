@@ -199,10 +199,7 @@ drawGenePoolVisualization = function() {
         return;
     }
 
-    let tierColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C", // Broad spectrum (greens)
-                      "#FFF59D", "#FFEE58", "#FFEB3B", "#FDD835", "#FBC02D"]; // Elite (yellows)
-    var eliteStartIdx = genepool.num_broad_spectrum_tiers;
-
+    let tierColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C"];
 
     for (var i = 0; i < genepool.tiers.length; i++) {
         let tier = genepool.tiers[i];
@@ -225,30 +222,19 @@ drawGenePoolVisualization = function() {
 
         if (tierWidth_px <= 0.1) continue; // Too small to draw
 
-        // Determine color
-        var colorIndex;
-        if (i < eliteStartIdx) { // Broad Spectrum
-            colorIndex = i % genepool.num_broad_spectrum_tiers;
-             ctx.fillStyle = tierColors[colorIndex % 5]; // Cycle through green shades
-        } else { // Elite
-            colorIndex = (i - eliteStartIdx) % genepool.num_elite_refinement_tiers;
-            ctx.fillStyle = tierColors[5 + (colorIndex % 5)]; // Cycle through yellow shades
-        }
+        ctx.fillStyle = tierColors[i % tierColors.length];
 
         ctx.fillRect(tierStartX_px, 0, tierWidth_px, canvasHeight);
         
         // Draw average score line if applicable
-        if (tier.entries.length > 0 &&
-            tier.mean_score >= tier.low_score &&
-            tier.mean_score <= tier.high_score) {
-            
+        if (tier.entries.length > 0 && tier.mean_score >= tier.low_score && tier.mean_score <= tier.high_score) {
             let tierScoreRange = tier.high_score - tier.low_score;
             if (tierScoreRange > 0) {
                 let avgScorePosInTierRel = (tier.mean_score - tier.low_score) / tierScoreRange;
                 var avgLineX_px = tierStartX_px + (avgScorePosInTierRel * tierWidth_px);
                 // Make sure avg line is within the drawn segment
                 avgLineX_px = Math.max(tierStartX_px, Math.min(avgLineX_px, tierEndX_px -1));
-                let avgLineHeight_n = tier.entries.length / genepool.capacity_per_tier;
+                let avgLineHeight_n = tier.entries.length / genepool.tier_capacity;
                 let avgLineHeight_half = Math.max(1, (canvasHeight - 4) * avgLineHeight_n) / 2.0;
                 let avgLineStartY_px = (canvasHeight / 2.0) - avgLineHeight_half;
                 let avgLineEndY_px = (canvasHeight / 2.0) + avgLineHeight_half;
