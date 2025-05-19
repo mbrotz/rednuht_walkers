@@ -158,20 +158,20 @@ getZoom = function(min_x, max_x, min_y, max_y) {
 }
 
 drawGenePoolVisualization = function() {
-    if (!globals.gene_pool_viz_ctx || !globals.geneTierPool) {
+    if (!globals.gene_pool_viz_ctx || !globals.genepool) {
         return;
     }
 
-    var ctx = globals.gene_pool_viz_ctx;
-    var canvas = globals.gene_pool_viz_canvas;
-    var canvasWidth = canvas.width;
-    var canvasHeight = canvas.height;
+    let ctx = globals.gene_pool_viz_ctx;
+    let canvas = globals.gene_pool_viz_canvas;
+    let canvasWidth = canvas.width;
+    let canvasHeight = canvas.height;
 
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-    var vizData = globals.geneTierPool.getVisualizationData(globals.last_record);
+    let genepool = globals.genepool;
 
-    if (!vizData || vizData.tier_details.length === 0 || vizData.current_record_score <= 0) {
+    if (!genepool || genepool.tiers.length === 0 || genepool.current_record_score <= 0) {
         ctx.fillStyle = "#eee";
         ctx.fillRect(0,0, canvasWidth, canvasHeight);
         ctx.strokeStyle = "#ccc";
@@ -179,13 +179,13 @@ drawGenePoolVisualization = function() {
         ctx.fillStyle = "#777";
         ctx.font = "10px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("Gene Pool Data Unavailable", canvasWidth / 2, canvasHeight / 2 + 4);
+        ctx.fillText("Gene Pool Empty", canvasWidth / 2, canvasHeight / 2 + 4);
         return;
     }
     
-    var barStartScore = vizData.base_pool_start_score;
-    var barEndScore = vizData.current_record_score;
-    var totalScoreRangeOnBar = barEndScore - barStartScore;
+    let barStartScore = genepool.start_score;
+    let barEndScore = genepool.current_record_score;
+    let totalScoreRangeOnBar = barEndScore - barStartScore;
 
     if (totalScoreRangeOnBar <= 0) { // e.g. base_threshold is 1.0, or record score too low
         ctx.fillStyle = "#ddd"; // Different background if bar is just a point
@@ -199,63 +199,64 @@ drawGenePoolVisualization = function() {
         return;
     }
 
-    var tierColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C", // Broad spectrum (greens)
+    let tierColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C", // Broad spectrum (greens)
                       "#FFF59D", "#FFEE58", "#FFEB3B", "#FDD835", "#FBC02D"]; // Elite (yellows)
-    var eliteStartIdx = globals.geneTierPool.num_broad_spectrum_tiers;
+    var eliteStartIdx = genepool.num_broad_spectrum_tiers;
 
 
-    for (var i = 0; i < vizData.tier_details.length; i++) {
-        var tier = vizData.tier_details[i];
+    for (var i = 0; i < genepool.tiers.length; i++) {
+        let tier = genepool.tiers[i];
 
-        var tierActualStartScore = tier.lower_bound_abs_score;
-        var tierActualEndScore = tier.upper_bound_abs_score;
+        let tierActualStartScore = tier.low_score;
+        let tierActualEndScore = tier.high_score;
 
         // Clip tier drawing to the bar's display range
-        var tierDisplayStartScore = Math.max(tierActualStartScore, barStartScore);
-        var tierDisplayEndScore = Math.min(tierActualEndScore, barEndScore);
+        let tierDisplayStartScore = Math.max(tierActualStartScore, barStartScore);
+        let tierDisplayEndScore = Math.min(tierActualEndScore, barEndScore);
 
         if (tierDisplayEndScore <= tierDisplayStartScore) continue; // Tier segment is outside or zero width on bar
 
-        var tierStartPosOnBarRel = tierDisplayStartScore - barStartScore;
-        var tierEndPosOnBarRel = tierDisplayEndScore - barStartScore;
+        let tierStartPosOnBarRel = tierDisplayStartScore - barStartScore;
+        let tierEndPosOnBarRel = tierDisplayEndScore - barStartScore;
         
-        var tierStartX_px = (tierStartPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
-        var tierEndX_px = (tierEndPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
-        var tierWidth_px = tierEndX_px - tierStartX_px;
+        let tierStartX_px = (tierStartPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
+        let tierEndX_px = (tierEndPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
+        let tierWidth_px = tierEndX_px - tierStartX_px;
 
         if (tierWidth_px <= 0.1) continue; // Too small to draw
 
         // Determine color
         var colorIndex;
         if (i < eliteStartIdx) { // Broad Spectrum
-            colorIndex = i % globals.geneTierPool.num_broad_spectrum_tiers;
+            colorIndex = i % genepool.num_broad_spectrum_tiers;
              ctx.fillStyle = tierColors[colorIndex % 5]; // Cycle through green shades
         } else { // Elite
-            colorIndex = (i - eliteStartIdx) % globals.geneTierPool.num_elite_refinement_tiers;
+            colorIndex = (i - eliteStartIdx) % genepool.num_elite_refinement_tiers;
             ctx.fillStyle = tierColors[5 + (colorIndex % 5)]; // Cycle through yellow shades
         }
 
         ctx.fillRect(tierStartX_px, 0, tierWidth_px, canvasHeight);
         
         // Draw average score line if applicable
-        if (tier.genome_count_in_tier > 0 &&
-            tier.average_score_in_tier >= tier.lower_bound_abs_score &&
-            tier.average_score_in_tier <= tier.upper_bound_abs_score) {
+        if (tier.entries.length > 0 &&
+            tier.mean_score >= tier.low_score &&
+            tier.mean_score <= tier.high_score) {
             
-            var tierScoreRange = tier.upper_bound_abs_score - tier.lower_bound_abs_score;
+            let tierScoreRange = tier.high_score - tier.low_score;
             if (tierScoreRange > 0) {
-                var avgScorePosInTierRel = (tier.average_score_in_tier - tier.lower_bound_abs_score) / tierScoreRange;
+                let avgScorePosInTierRel = (tier.mean_score - tier.low_score) / tierScoreRange;
                 var avgLineX_px = tierStartX_px + (avgScorePosInTierRel * tierWidth_px);
-                
                 // Make sure avg line is within the drawn segment
                 avgLineX_px = Math.max(tierStartX_px, Math.min(avgLineX_px, tierEndX_px -1));
-
-
+                let avgLineHeight_n = tier.entries.length / genepool.capacity_per_tier;
+                let avgLineHeight_half = Math.max(1, (canvasHeight - 4) * avgLineHeight_n) / 2.0;
+                let avgLineStartY_px = (canvasHeight / 2.0) - avgLineHeight_half;
+                let avgLineEndY_px = (canvasHeight / 2.0) + avgLineHeight_half;
                 ctx.strokeStyle = "rgba(255, 0, 0, 0.7)"; // Semi-transparent red
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(avgLineX_px, 2); // Small offset from top/bottom
-                ctx.lineTo(avgLineX_px, canvasHeight - 2);
+                ctx.moveTo(avgLineX_px, avgLineStartY_px); // Small offset from top/bottom
+                ctx.lineTo(avgLineX_px, avgLineEndY_px);
                 ctx.stroke();
             }
         }

@@ -22,21 +22,25 @@ quotes = [
 ];
 
 printNames = function(walkers) {
-    var name_list = document.getElementById("name_list");
-    name_list.innerHTML = "";
-    for(var k = 0; k < walkers.length; k++) {
-        var tr = document.createElement("TR");
-        var td = document.createElement("TD");
-        td.className = "name";
-        td.appendChild(document.createTextNode(walkers[k].name));
-        tr.appendChild(td);
+    let ms = +Date.now();
+    if (config.draw_fps > 0 && (globals.last_population_update === undefined || ms - globals.last_population_update >= 500)) {
+        globals.last_population_update = ms;
+        let name_list = document.getElementById("name_list");
+        name_list.innerHTML = "";
+        for(var k = 0; k < walkers.length; k++) {
+            var tr = document.createElement("TR");
+            var td = document.createElement("TD");
+            td.className = "name";
+            td.appendChild(document.createTextNode(walkers[k].name));
+            tr.appendChild(td);
 
-        td = document.createElement("TD");
-        td.className = "score";
+            td = document.createElement("TD");
+            td.className = "score";
 
-        td.appendChild(document.createTextNode(walkers[k].fitness_score.toFixed(2)));
-        tr.appendChild(td);
-        name_list.appendChild(tr);
+            td.appendChild(document.createTextNode(walkers[k].fitness_score.toFixed(2)));
+            tr.appendChild(td);
+            name_list.appendChild(tr);
+        }
     }
 }
 
@@ -72,7 +76,11 @@ printChampion = function(walker) {
 }
 
 updateWalkerTotalCount = function(number) { 
-    document.getElementById("gen_number").innerHTML = number;
+    let ms = +Date.now();
+    if (globals.last_walker_count_update === undefined || ms - globals.last_walker_count_update >= 500) {
+        globals.last_walker_count_update = ms;
+        document.getElementById("gen_number").innerHTML = number;
+    }
 }
 
 setQuote = function() {

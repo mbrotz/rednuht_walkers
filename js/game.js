@@ -12,8 +12,8 @@ config = {
     mutation_amount: 0.5,
     max_floor_tiles: 50,
     population_size: 40,
-    base_pool_threshold: 0.1,
-    num_broad_spectrum_tiers: 10,
+    base_pool_threshold: 0.25,
+    num_broad_spectrum_tiers: 20,
     num_elite_refinement_tiers: 5,
     capacity_per_tier: 10,
     record_history_display_limit: 40,
@@ -54,7 +54,7 @@ gameInit = function() {
 
     globals.champion_genomes = []; 
 
-    globals.geneTierPool = new GenePool(config);
+    globals.genepool = new GenePool(config);
 
     globals.last_record = 0;    
     globals.walkers = createPopulation(); 
@@ -140,7 +140,7 @@ populationSimulationStep = function() {
                     }
                 }
 
-                globals.geneTierPool.addGenome(eliminatedWalkerGenome, eliminatedWalkerScore, globals.last_record);
+                globals.genepool.addGenome(eliminatedWalkerGenome, eliminatedWalkerScore, globals.last_record);
 
                 for(var l = 0; l < eliminatedWalker.bodies.length; l++) {
                     if(eliminatedWalker.bodies[l]) {
@@ -171,7 +171,7 @@ replaceWalkerAtIndex = function(index) {
 }
 
 pickParentGenome = function() {
-    var parent_genome = globals.geneTierPool.selectParentGenome();
+    var parent_genome = globals.genepool.selectParentGenome();
 
     if (!parent_genome) {
 
