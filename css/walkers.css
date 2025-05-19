@@ -1,4 +1,3 @@
-
 * {
     margin: 0;
     padding: 0;
@@ -61,12 +60,24 @@ select {
 
 #simulation_area {
     text-align: center; 
-    margin-bottom: 20px;
+    /* margin-bottom: 20px; */ /* Adjusted for gene pool bar */
 }
 
 #main_screen {
     border: 1px solid #888;
 }
+
+#gene_pool_visualization_container {
+    text-align: center; /* Center the canvas */
+    margin-top: 5px;    /* Space above the bar */
+    margin-bottom: 10px; /* Space below the bar */
+}
+
+#gene_pool_viz_bar {
+    border: 1px solid #aaa;
+    /* width is set in HTML, centering is handled by parent */
+}
+
 
 #stats_display_area {
     text-align: center;

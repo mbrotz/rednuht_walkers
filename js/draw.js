@@ -1,6 +1,14 @@
 drawInit = function() {
     globals.main_screen = document.getElementById("main_screen");
     globals.ctx = main_screen.getContext("2d");
+    
+    globals.gene_pool_viz_canvas = document.getElementById("gene_pool_viz_bar");
+    if (globals.gene_pool_viz_canvas) {
+        globals.gene_pool_viz_ctx = globals.gene_pool_viz_canvas.getContext("2d");
+    } else {
+        console.error("Gene pool visualization canvas not found!");
+    }
+
     resetCamera();
 }
 
@@ -38,6 +46,7 @@ drawFrame = function() {
         }
     }
     globals.ctx.restore();
+    drawGenePoolVisualization();
 }
 
 drawFloor = function() {
@@ -147,3 +156,113 @@ getZoom = function(min_x, max_x, min_y, max_y) {
     var zoom = Math.min(globals.main_screen.width/delta_x,globals.main_screen.height/delta_y);
     return zoom;
 }
+
+drawGenePoolVisualization = function() {
+    if (!globals.gene_pool_viz_ctx || !globals.geneTierPool) {
+        return;
+    }
+
+    var ctx = globals.gene_pool_viz_ctx;
+    var canvas = globals.gene_pool_viz_canvas;
+    var canvasWidth = canvas.width;
+    var canvasHeight = canvas.height;
+
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+    var vizData = globals.geneTierPool.getVisualizationData(globals.last_record);
+
+    if (!vizData || vizData.tier_details.length === 0 || vizData.current_record_score <= 0) {
+        ctx.fillStyle = "#eee";
+        ctx.fillRect(0,0, canvasWidth, canvasHeight);
+        ctx.strokeStyle = "#ccc";
+        ctx.strokeRect(0,0, canvasWidth, canvasHeight);
+        ctx.fillStyle = "#777";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Gene Pool Data Unavailable", canvasWidth / 2, canvasHeight / 2 + 4);
+        return;
+    }
+    
+    var barStartScore = vizData.base_pool_start_score;
+    var barEndScore = vizData.current_record_score;
+    var totalScoreRangeOnBar = barEndScore - barStartScore;
+
+    if (totalScoreRangeOnBar <= 0) { // e.g. base_threshold is 1.0, or record score too low
+        ctx.fillStyle = "#ddd"; // Different background if bar is just a point
+        ctx.fillRect(0,0, canvasWidth, canvasHeight);
+        ctx.strokeStyle = "#aaa";
+        ctx.strokeRect(0,0, canvasWidth, canvasHeight);
+        ctx.fillStyle = "#555";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Gene Pool Range Too Small", canvasWidth / 2, canvasHeight / 2 + 4);
+        return;
+    }
+
+    var tierColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C", // Broad spectrum (greens)
+                      "#FFF59D", "#FFEE58", "#FFEB3B", "#FDD835", "#FBC02D"]; // Elite (yellows)
+    var eliteStartIdx = globals.geneTierPool.num_broad_spectrum_tiers;
+
+
+    for (var i = 0; i < vizData.tier_details.length; i++) {
+        var tier = vizData.tier_details[i];
+
+        var tierActualStartScore = tier.lower_bound_abs_score;
+        var tierActualEndScore = tier.upper_bound_abs_score;
+
+        // Clip tier drawing to the bar's display range
+        var tierDisplayStartScore = Math.max(tierActualStartScore, barStartScore);
+        var tierDisplayEndScore = Math.min(tierActualEndScore, barEndScore);
+
+        if (tierDisplayEndScore <= tierDisplayStartScore) continue; // Tier segment is outside or zero width on bar
+
+        var tierStartPosOnBarRel = tierDisplayStartScore - barStartScore;
+        var tierEndPosOnBarRel = tierDisplayEndScore - barStartScore;
+        
+        var tierStartX_px = (tierStartPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
+        var tierEndX_px = (tierEndPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
+        var tierWidth_px = tierEndX_px - tierStartX_px;
+
+        if (tierWidth_px <= 0.1) continue; // Too small to draw
+
+        // Determine color
+        var colorIndex;
+        if (i < eliteStartIdx) { // Broad Spectrum
+            colorIndex = i % globals.geneTierPool.num_broad_spectrum_tiers;
+             ctx.fillStyle = tierColors[colorIndex % 5]; // Cycle through green shades
+        } else { // Elite
+            colorIndex = (i - eliteStartIdx) % globals.geneTierPool.num_elite_refinement_tiers;
+            ctx.fillStyle = tierColors[5 + (colorIndex % 5)]; // Cycle through yellow shades
+        }
+
+        ctx.fillRect(tierStartX_px, 0, tierWidth_px, canvasHeight);
+        
+        // Draw average score line if applicable
+        if (tier.genome_count_in_tier > 0 &&
+            tier.average_score_in_tier >= tier.lower_bound_abs_score &&
+            tier.average_score_in_tier <= tier.upper_bound_abs_score) {
+            
+            var tierScoreRange = tier.upper_bound_abs_score - tier.lower_bound_abs_score;
+            if (tierScoreRange > 0) {
+                var avgScorePosInTierRel = (tier.average_score_in_tier - tier.lower_bound_abs_score) / tierScoreRange;
+                var avgLineX_px = tierStartX_px + (avgScorePosInTierRel * tierWidth_px);
+                
+                // Make sure avg line is within the drawn segment
+                avgLineX_px = Math.max(tierStartX_px, Math.min(avgLineX_px, tierEndX_px -1));
+
+
+                ctx.strokeStyle = "rgba(255, 0, 0, 0.7)"; // Semi-transparent red
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(avgLineX_px, 2); // Small offset from top/bottom
+                ctx.lineTo(avgLineX_px, canvasHeight - 2);
+                ctx.stroke();
+            }
+        }
+    }
+
+    // Draw overall border for the bar
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, canvasWidth, canvasHeight);
+};
