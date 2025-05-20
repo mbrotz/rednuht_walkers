@@ -1,4 +1,4 @@
-
+﻿
 function gaussianRandom(mean = 0, stdev = 1) {
     const u = 1 - Math.random();
     const v = Math.random();
@@ -17,11 +17,11 @@ GenePool.prototype.__constructor = function(config) {
     this.tier_capacity = config.genepool_tier_capacity;
     this.range_decay = config.genepool_range_decay;
     this.selection_pressure = config.genepool_selection_pressure;
-    
+
     this.start_score = 0.0;
     this.current_record_score = 0.0;
     this.tiers = [];
-    
+
     var current_range = this.range;
     for (var i = 0; i < this.num_tiers; i++) {
         this.tiers.push({
@@ -228,7 +228,7 @@ GenePool.prototype._selectParentEntryUniform = function(selected_tier) {
     if (selected_tier.entries.length == 1) {
         return selected_tier.entries[0];
     }
-    let selected_entry_index = Math.floor(Math.random() * selected_tier.entries.length); 
+    let selected_entry_index = Math.floor(Math.random() * selected_tier.entries.length);
     return selected_tier.entries[selected_entry_index];
 }
 

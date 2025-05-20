@@ -1,7 +1,7 @@
-drawInit = function() {
+﻿drawInit = function() {
     globals.main_screen = document.getElementById("main_screen");
     globals.ctx = main_screen.getContext("2d");
-    
+
     globals.gene_pool_viz_canvas = document.getElementById("gene_pool_viz_bar");
     if (globals.gene_pool_viz_canvas) {
         globals.gene_pool_viz_ctx = globals.gene_pool_viz_canvas.getContext("2d");
@@ -129,7 +129,7 @@ getMinMaxDistance = function() {
     var max_y = -1;
     var activeWalkerFound = false;
     for(var k = 0; k < globals.walkers.length; k++) {
-        if(globals.walkers[k] && !globals.walkers[k].is_eliminated) { 
+        if(globals.walkers[k] && !globals.walkers[k].is_eliminated) {
             activeWalkerFound = true;
             var dist = globals.walkers[k].torso.upper_torso.GetPosition();
             min_x = Math.min(min_x, dist.x);
@@ -151,8 +151,8 @@ getMinMaxDistance = function() {
 getZoom = function(min_x, max_x, min_y, max_y) {
     var delta_x = Math.abs(max_x - min_x);
     var delta_y = Math.abs(max_y - min_y);
-    if (delta_x === 0) delta_x = 1; 
-    if (delta_y === 0) delta_y = 1; 
+    if (delta_x === 0) delta_x = 1;
+    if (delta_y === 0) delta_y = 1;
     var zoom = Math.min(globals.main_screen.width/delta_x,globals.main_screen.height/delta_y);
     return zoom;
 }
@@ -182,7 +182,7 @@ drawGenePoolVisualization = function() {
         ctx.fillText("Gene Pool Empty", canvasWidth / 2, canvasHeight / 2 + 4);
         return;
     }
-    
+
     let barStartScore = genepool.start_score;
     let barEndScore = genepool.current_record_score;
     let totalScoreRangeOnBar = barEndScore - barStartScore;
@@ -215,7 +215,7 @@ drawGenePoolVisualization = function() {
 
         let tierStartPosOnBarRel = tierDisplayStartScore - barStartScore;
         let tierEndPosOnBarRel = tierDisplayEndScore - barStartScore;
-        
+
         let tierStartX_px = (tierStartPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
         let tierEndX_px = (tierEndPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
         let tierWidth_px = tierEndX_px - tierStartX_px;
@@ -225,7 +225,7 @@ drawGenePoolVisualization = function() {
         ctx.fillStyle = tierColors[i % tierColors.length];
 
         ctx.fillRect(tierStartX_px, 0, tierWidth_px, canvasHeight);
-        
+
         // Draw average score line if applicable
         if (tier.entries.length > 0 && tier.mean_score >= tier.low_score && tier.mean_score <= tier.high_score) {
             let tierScoreRange = tier.high_score - tier.low_score;

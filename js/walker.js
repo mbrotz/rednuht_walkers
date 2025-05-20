@@ -1,21 +1,21 @@
-
+﻿
 var Walker = function() {
     this.__constructor.apply(this, arguments);
 }
 
 Walker.prototype.__constructor = function(world, genome) {
 
-    this.world = globals.world; 
+    this.world = globals.world;
 
-    this.density = 106.2; 
+    this.density = 106.2;
 
     this.local_step_counter = 0;
 
-    this.max_distance = -5; 
-    this.id = 0; 
+    this.max_distance = -5;
+    this.id = 0;
 
     this.is_eliminated = false;
-    this.processed_after_elimination = false; 
+    this.processed_after_elimination = false;
     this.initial_torso_center_x = 0;
     this.max_torso_center_x = 0;
     this.steps_without_improvement = 0;
@@ -25,7 +25,7 @@ Walker.prototype.__constructor = function(world, genome) {
     this.bd.type = b2.Body.b2_dynamicBody;
     this.bd.linearDamping = 0;
     this.bd.angularDamping = 0.01;
-    this.bd.allowSleep = true; 
+    this.bd.allowSleep = true;
     this.bd.awake = true;
 
     this.fd = new b2.FixtureDef();
@@ -83,7 +83,7 @@ Walker.prototype.__constructor = function(world, genome) {
     if(genome) {
         this.genome = JSON.parse(JSON.stringify(genome));
     } else {
-        this.genome = this.createGenome(this.joints, this.bodies); 
+        this.genome = this.createGenome(this.joints, this.bodies);
     }
 
     this.name = this.makeName(this.genome);
@@ -105,7 +105,7 @@ Walker.prototype.createTorso = function() {
     var jd = new b2.RevoluteJointDef();
     var position = upper_torso.GetPosition().Clone();
     position.y -= this.torso_def.upper_height/2;
-    position.x -= this.torso_def.lower_width/3; 
+    position.x -= this.torso_def.lower_width/3;
     jd.Initialize(upper_torso, lower_torso, position);
     jd.lowerAngle = -Math.PI/18;
     jd.upperAngle = Math.PI/10;
@@ -140,10 +140,10 @@ Walker.prototype.createLeg = function() {
     var jd = new b2.RevoluteJointDef();
     var position = upper_leg.GetPosition().Clone();
     position.y -= this.leg_def.femur_length/2;
-    position.x += this.leg_def.femur_width/4; 
+    position.x += this.leg_def.femur_width/4;
     jd.Initialize(upper_leg, lower_leg, position);
-    jd.lowerAngle = -1.6; 
-    jd.upperAngle = -0.2; 
+    jd.lowerAngle = -1.6;
+    jd.upperAngle = -0.2;
     jd.enableLimit = true;
     jd.maxMotorTorque = 160;
     jd.motorSpeed = 0;
@@ -181,8 +181,8 @@ Walker.prototype.createArm = function() {
     var position = upper_arm.GetPosition().Clone();
     position.y -= this.arm_def.arm_length/2;
     jd.Initialize(upper_arm, lower_arm, position);
-    jd.lowerAngle = 0; 
-    jd.upperAngle = 1.22; 
+    jd.lowerAngle = 0;
+    jd.upperAngle = 1.22;
     jd.enableLimit = true;
     jd.maxMotorTorque = 60;
     jd.motorSpeed = 0;
@@ -213,7 +213,7 @@ Walker.prototype.createHead = function() {
     jd.lowerAngle = -0.1;
     jd.upperAngle = 0.1;
     jd.enableLimit = true;
-    jd.maxMotorTorque = 2; 
+    jd.maxMotorTorque = 2;
     jd.motorSpeed = 0;
     jd.enableMotor = true;
     this.joints.push(this.world.CreateJoint(jd));
@@ -222,29 +222,29 @@ Walker.prototype.createHead = function() {
 }
 
 Walker.prototype.connectParts = function() {
-    var jd_weld = new b2.WeldJointDef(); 
+    var jd_weld = new b2.WeldJointDef();
     jd_weld.bodyA = this.head.neck;
     jd_weld.bodyB = this.torso.upper_torso;
     jd_weld.localAnchorA = new b2.Vec2(0, -this.head_def.neck_height/2);
     jd_weld.localAnchorB = new b2.Vec2(0, this.torso_def.upper_height/2);
     jd_weld.referenceAngle = 0;
-    this.world.CreateJoint(jd_weld); 
+    this.world.CreateJoint(jd_weld);
 
-    var jd = new b2.RevoluteJointDef(); 
+    var jd = new b2.RevoluteJointDef();
 
     var arm_connect_pos = this.torso.upper_torso.GetPosition().Clone();
-    arm_connect_pos.y += this.torso_def.upper_height/2; 
+    arm_connect_pos.y += this.torso_def.upper_height/2;
 
     jd.Initialize(this.torso.upper_torso, this.right_arm.upper_arm, arm_connect_pos);
-    jd.lowerAngle = -Math.PI/2; 
-    jd.upperAngle = Math.PI/1.5; 
+    jd.lowerAngle = -Math.PI/2;
+    jd.upperAngle = Math.PI/1.5;
     jd.enableLimit = true;
     jd.maxMotorTorque = 120;
     jd.motorSpeed = 0;
     jd.enableMotor = true;
     this.joints.push(this.world.CreateJoint(jd));
 
-    var jd2 = new b2.RevoluteJointDef(); 
+    var jd2 = new b2.RevoluteJointDef();
     jd2.Initialize(this.torso.upper_torso, this.left_arm.upper_arm, arm_connect_pos);
     jd2.lowerAngle = -Math.PI/2;
     jd2.upperAngle = Math.PI/1.5;
@@ -255,12 +255,12 @@ Walker.prototype.connectParts = function() {
     this.joints.push(this.world.CreateJoint(jd2));
 
     var leg_connect_pos = this.torso.lower_torso.GetPosition().Clone();
-    leg_connect_pos.y -= this.torso_def.lower_height/2; 
+    leg_connect_pos.y -= this.torso_def.lower_height/2;
 
     var jd3 = new b2.RevoluteJointDef();
     jd3.Initialize(this.torso.lower_torso, this.right_leg.upper_leg, leg_connect_pos);
-    jd3.lowerAngle = -Math.PI/2.5; 
-    jd3.upperAngle = Math.PI/3;   
+    jd3.lowerAngle = -Math.PI/2.5;
+    jd3.upperAngle = Math.PI/3;
     jd3.enableLimit = true;
     jd3.maxMotorTorque = 250;
     jd3.motorSpeed = 0;
@@ -297,9 +297,9 @@ Walker.prototype.getBodies = function() {
     ];
 }
 
-Walker.prototype.createGenome = function(joints, bodies) { 
+Walker.prototype.createGenome = function(joints, bodies) {
     var genome = [];
-    var num_motorized_joints = this.joints.length; 
+    var num_motorized_joints = this.joints.length;
 
     for(var k = 0; k < num_motorized_joints; k++) {
         let max_torque = this.joints[k].GetMaxMotorTorque();
@@ -353,7 +353,7 @@ Walker.prototype.simulationStep = function(motor_noise) {
             this.is_eliminated = true;
         }
     }
-    
+
     if (current_torso_x > config.max_floor_x) {
         this.is_eliminated = true;
     }
@@ -383,10 +383,10 @@ Walker.prototype.makeName = function(genome) {
             var gene_index = (gene_start_offset + i) % genome_source.length;
 
             var current_gene = genome_source[gene_index];
-            if (current_gene) { 
+            if (current_gene) {
                 for (var prop in current_gene) {
                     if (current_gene.hasOwnProperty(prop) && typeof current_gene[prop] === 'number') {
-                        sum += (current_gene[prop] * (100 + (gene_start_offset % 13))); 
+                        sum += (current_gene[prop] * (100 + (gene_start_offset % 13)));
                     }
                 }
             }
@@ -404,16 +404,16 @@ Walker.prototype.makeName = function(genome) {
             } else {
                 name_part += char_to_add;
             }
-            use_vowel = !use_vowel; 
+            use_vowel = !use_vowel;
         }
         return name_part;
     };
 
     if (!genome || genome.length === 0) {
-        return "Genomi Anonymi"; 
+        return "Genomi Anonymi";
     }
 
-    var min_name_len = 3; 
+    var min_name_len = 3;
     var max_genus_len = 6;
     var max_species_len = 8;
 
@@ -423,9 +423,9 @@ Walker.prototype.makeName = function(genome) {
     var genus_name = generateNamePart(genome, genus_length, true, 0);
 
     var species_offset = Math.floor(genome.length / 3);
-    if (genome.length <= 2 && genome.length > 0) { 
+    if (genome.length <= 2 && genome.length > 0) {
         species_offset = 1;
-    } else if (genome.length === 0) { 
+    } else if (genome.length === 0) {
         species_offset = 0;
     }
 

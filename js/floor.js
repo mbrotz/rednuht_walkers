@@ -1,4 +1,4 @@
-function createFloor() {
+﻿function createFloor() {
     var body_def = new b2.BodyDef();
     var body = globals.world.CreateBody(body_def);
     var fix_def = new b2.FixtureDef();

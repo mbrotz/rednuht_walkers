@@ -1,4 +1,4 @@
-config = {
+﻿config = {
     motor_noise: 0.0,
     time_step: 60,
     simulation_fps: 60,
@@ -51,21 +51,21 @@ gameInit = function() {
     globals.world.SetContactListener(new HeadFloorContactListener());
     globals.walker_id_counter = 0;
 
-    globals.champion_genomes = []; 
+    globals.champion_genomes = [];
 
     globals.genepool = new GenePool(config);
 
-    globals.last_record = 0;    
-    globals.walkers = createPopulation(); 
+    globals.last_record = 0;
+    globals.walkers = createPopulation();
     globals.floor = createFloor();
 
     drawInit();
 
-    setQuote(); 
-    setInterval(setQuote, 60000); 
+    setQuote();
+    setInterval(setQuote, 60000);
 
     globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
-    if(config.draw_fps > 0) { 
+    if(config.draw_fps > 0) {
         globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.draw_fps));
     }
 }
@@ -75,7 +75,7 @@ simulationStep = function() {
         simulationSingleStep();
     } else {
 
-        for (var i = 0; i < 10; i++) { 
+        for (var i = 0; i < 10; i++) {
             simulationSingleStep();
         }
     }
@@ -92,7 +92,7 @@ setSimulationFps = function(fps) {
     clearInterval(globals.simulation_interval);
     if(fps > 0) {
         globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
-        if(globals.paused) { 
+        if(globals.paused) {
             globals.paused = false;
             if(config.draw_fps > 0) {
                 globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.draw_fps));
@@ -104,14 +104,14 @@ setSimulationFps = function(fps) {
     }
 }
 
-createPopulation = function(initial_genomes) { 
-    updateWalkerTotalCount(globals.walker_id_counter); 
+createPopulation = function(initial_genomes) {
+    updateWalkerTotalCount(globals.walker_id_counter);
     var walkers = [];
     for(var k = 0; k < config.population_size; k++) {
         globals.walker_id_counter++;
         let walker;
 
-        walker = new Walker(globals.world); 
+        walker = new Walker(globals.world);
         walker.id = globals.walker_id_counter;
         walkers.push(walker);
     }
@@ -123,10 +123,10 @@ populationSimulationStep = function() {
     for(var k = 0; k < config.population_size; k++) {
         if(!globals.walkers[k].is_eliminated) {
             globals.walkers[k].simulationStep(config.motor_noise);
-        } else { 
-            if(!globals.walkers[k].processed_after_elimination) { 
+        } else {
+            if(!globals.walkers[k].processed_after_elimination) {
                 var eliminatedWalker = globals.walkers[k];
-                var eliminatedWalkerScore = eliminatedWalker.fitness_score; 
+                var eliminatedWalkerScore = eliminatedWalker.fitness_score;
                 var eliminatedWalkerGenome = JSON.parse(JSON.stringify(eliminatedWalker.genome));
 
                 if(eliminatedWalkerScore > globals.last_record) {
@@ -147,17 +147,17 @@ populationSimulationStep = function() {
                         eliminatedWalker.bodies[l] = null;
                     }
                 }
-                eliminatedWalker.processed_after_elimination = true; 
+                eliminatedWalker.processed_after_elimination = true;
 
                 replaceWalkerAtIndex(k);
             }
         }
     }
-    printNames(globals.walkers); 
+    printNames(globals.walkers);
 }
 
 replaceWalkerAtIndex = function(index) {
-    var parent_genome = pickParentGenome(); 
+    var parent_genome = pickParentGenome();
 
     var new_genome = cloneAndMutate(parent_genome);
 
@@ -174,7 +174,7 @@ pickParentGenome = function() {
 
     if (!parent_genome) {
 
-        var tempWalker = new Walker(globals.world); 
+        var tempWalker = new Walker(globals.world);
         parent_genome = tempWalker.genome;
 
         for(var l = 0; l < tempWalker.bodies.length; l++) {
@@ -184,7 +184,7 @@ pickParentGenome = function() {
         }
     }
 
-    return parent_genome; 
+    return parent_genome;
 }
 
 cloneAndMutate = function(parent_genome) {
@@ -192,10 +192,10 @@ cloneAndMutate = function(parent_genome) {
         console.error("Attempted to clone a null or undefined genome. Creating a new random genome for mutation.");
         var tempWalker = new Walker(globals.world);
         var randomGenome = tempWalker.genome;
-        for(var l = 0; l < tempWalker.bodies.length; l++) { 
+        for(var l = 0; l < tempWalker.bodies.length; l++) {
             if(tempWalker.bodies[l]) globals.world.DestroyBody(tempWalker.bodies[l]);
         }
-        parent_genome = randomGenome; 
+        parent_genome = randomGenome;
     }
 
     var new_genome = JSON.parse(JSON.stringify(parent_genome));

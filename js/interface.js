@@ -1,4 +1,4 @@
-quotes = [
+﻿quotes = [
     "It is not the strongest of the species that survives, nor the most intelligent; it is the one most adaptable to change.",
     "Man selects only for his own good: Nature only for that of the being which she tends.",
     "Endless forms most beautiful and most wonderful have been, and are being, evolved.",
@@ -45,12 +45,12 @@ printNames = function(walkers) {
 }
 
 printChampion = function(walker) {
-    var champ_list = document.getElementById("champ_list"); 
+    var champ_list = document.getElementById("champ_list");
     var tr = document.createElement("TR");
 
     var tdId = document.createElement("TD");
-    tdId.className = "generation"; 
-    tdId.appendChild(document.createTextNode(walker.id)); 
+    tdId.className = "generation";
+    tdId.appendChild(document.createTextNode(walker.id));
     tr.appendChild(tdId);
 
     var tdName = document.createElement("TD");
@@ -70,12 +70,12 @@ printChampion = function(walker) {
         champ_list.appendChild(tr);
     }
 
-    while (champ_list.rows.length > config.record_history_display_limit) { 
+    while (champ_list.rows.length > config.record_history_display_limit) {
         champ_list.removeChild(champ_list.rows[champ_list.rows.length - 1]);
     }
 }
 
-updateWalkerTotalCount = function(number) { 
+updateWalkerTotalCount = function(number) {
     let ms = +Date.now();
     if (globals.last_walker_count_update === undefined || ms - globals.last_walker_count_update >= 500) {
         globals.last_walker_count_update = ms;
@@ -99,7 +99,7 @@ function setupSelectControl(elementId, configProperty, isFloat) {
             var optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
             var configValue = isFloat ? parseFloat(config[lowerCaseConfigProperty]) : parseInt(config[lowerCaseConfigProperty]);
 
-            if (config[lowerCaseConfigProperty] === undefined && config[configProperty] !== undefined) { 
+            if (config[lowerCaseConfigProperty] === undefined && config[configProperty] !== undefined) {
                 configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
             }
 
@@ -112,7 +112,7 @@ function setupSelectControl(elementId, configProperty, isFloat) {
             var newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
             config[lowerCaseConfigProperty] = newValue;
             if (config[configProperty] !== undefined && lowerCaseConfigProperty !== configProperty) {
-                config[configProperty] = newValue; 
+                config[configProperty] = newValue;
             }
 
         };
@@ -133,7 +133,7 @@ interfaceSetup = function() {
             }
         }
         fps_sel.onchange = function() {
-            setFps(parseInt(this.value)); 
+            setFps(parseInt(this.value));
         }
     }
 
@@ -146,7 +146,7 @@ interfaceSetup = function() {
             }
         }
         simulation_fps_sel.onchange = function() {
-            setSimulationFps(parseInt(this.value)); 
+            setSimulationFps(parseInt(this.value));
         }
     }
 }
