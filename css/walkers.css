@@ -58,21 +58,21 @@ select {
     padding-bottom: 20px;
 }
 
-#simulation_area {
+#sim_area {
     text-align: center;
 }
 
-#main_screen {
+#sim_canvas {
     border: 1px solid #888;
 }
 
-#gene_pool_visualization_container {
+#gp_area {
     text-align: center;
     margin-top: 5px;
     margin-bottom: 10px;
 }
 
-#gene_pool_viz_bar {
+#gp_canvas {
     border: 1px solid #aaa;
 }
 
@@ -193,25 +193,6 @@ select {
 #about_section_container h2 {
     text-align: center;
     margin-bottom: 20px;
-}
-
-#hidden_ss {
-    height: 0;
-    width: 0;
-    display: none;
-}
-
-#generation_timer {
-    width: 100%;
-    height: 10px;
-}
-
-#generation_timer_bar {
-    background-color: #bbf;
-    height: 100%;
-    width: 0;
-    font-size: 0;
-    max-width: 100%;
 }
 
 #info {

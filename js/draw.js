@@ -1,15 +1,9 @@
 ﻿
 drawInit = function() {
-    globals.main_screen = document.getElementById("main_screen");
-    globals.ctx = main_screen.getContext("2d");
-
-    globals.gene_pool_viz_canvas = document.getElementById("gene_pool_viz_bar");
-    if (globals.gene_pool_viz_canvas) {
-        globals.gene_pool_viz_ctx = globals.gene_pool_viz_canvas.getContext("2d");
-    } else {
-        console.error("Gene pool visualization canvas not found!");
-    }
-
+    globals.sim_canvas = document.getElementById("sim_canvas");
+    globals.sim_ctx = sim_canvas.getContext("2d");
+    globals.gp_canvas = document.getElementById("gp_canvas");
+    globals.gp_ctx = globals.gp_canvas.getContext("2d");
     resetCamera();
 }
 
@@ -26,57 +20,51 @@ drawFrame = function() {
     globals.translate_x += 0.1*(1.5-minmax.min_x - globals.translate_x);
     globals.translate_y += 0.3*(minmax.min_y*globals.zoom + 280 - globals.translate_y);
 
-    globals.ctx.clearRect(0, 0, globals.main_screen.width, globals.main_screen.height);
-    globals.ctx.save();
-    globals.ctx.translate(globals.translate_x*globals.zoom, globals.translate_y);
-    globals.ctx.scale(globals.zoom, -globals.zoom);
+    globals.sim_ctx.clearRect(0, 0, globals.sim_canvas.width, globals.sim_canvas.height);
+    globals.sim_ctx.save();
+    globals.sim_ctx.translate(globals.translate_x*globals.zoom, globals.translate_y);
+    globals.sim_ctx.scale(globals.zoom, -globals.zoom);
     drawFloor();
-    for (let k = config.population_size - 1; k >= 0 ; k--) {
-        if (globals.walkers[k] && !globals.walkers[k].is_eliminated) {
-            drawWalker(globals.walkers[k]);
+    for (let k = globals.population.walkers.length - 1; k >= 0 ; k--) {
+        let walker = globals.population.walkers[k];
+        if (walker && !walker.is_eliminated) {
+            drawWalker(walker);
         }
     }
-    globals.ctx.restore();
-    drawGenePoolVisualization();
+    globals.sim_ctx.restore();
+    drawGenePool();
 }
 
 drawFloor = function() {
-    globals.ctx.strokeStyle = "#444";
-    globals.ctx.lineWidth = 1/globals.zoom;
-    globals.ctx.beginPath();
+    globals.sim_ctx.strokeStyle = "#444";
+    globals.sim_ctx.lineWidth = 1/globals.zoom;
+    globals.sim_ctx.beginPath();
     let floor_fixture = globals.floor.GetFixtureList();
-    globals.ctx.moveTo(floor_fixture.m_shape.m_vertices[0].x, floor_fixture.m_shape.m_vertices[0].y);
+    globals.sim_ctx.moveTo(floor_fixture.m_shape.m_vertices[0].x, floor_fixture.m_shape.m_vertices[0].y);
     for (let k = 1; k < floor_fixture.m_shape.m_vertices.length; k++) {
-        globals.ctx.lineTo(floor_fixture.m_shape.m_vertices[k].x, floor_fixture.m_shape.m_vertices[k].y);
+        globals.sim_ctx.lineTo(floor_fixture.m_shape.m_vertices[k].x, floor_fixture.m_shape.m_vertices[k].y);
     }
-    globals.ctx.stroke();
+    globals.sim_ctx.stroke();
 }
 
 drawWalker = function(walker) {
-
     let current_torso_x = walker.torso.upper_torso.GetPosition().x;
     let pressure_line_distance = current_torso_x - walker.pressure_line_x_position;
     let normalized_distance = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
-
     let brightness_factor = 40 + 50 * normalized_distance;
     let saturation_factor = 30 + 40 * normalized_distance;
-
-    globals.ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
-    globals.ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";
-    globals.ctx.lineWidth = 1/globals.zoom;
-
+    globals.sim_ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
+    globals.sim_ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";
+    globals.sim_ctx.lineWidth = 1/globals.zoom;
     drawRect(walker.left_arm.lower_arm);
     drawRect(walker.left_arm.upper_arm);
     drawRect(walker.left_leg.foot);
     drawRect(walker.left_leg.lower_leg);
     drawRect(walker.left_leg.upper_leg);
-
     drawRect(walker.head.neck);
     drawRect(walker.head.head);
-
     drawRect(walker.torso.lower_torso);
     drawRect(walker.torso.upper_torso);
-
     drawRect(walker.right_leg.upper_leg);
     drawRect(walker.right_leg.lower_leg);
     drawRect(walker.right_leg.foot);
@@ -85,32 +73,18 @@ drawWalker = function(walker) {
 }
 
 drawRect = function(body) {
-    globals.ctx.beginPath();
+    globals.sim_ctx.beginPath();
     let fixture = body.GetFixtureList();
     let shape = fixture.GetShape();
     let p0 = body.GetWorldPoint(shape.m_vertices[0]);
-    globals.ctx.moveTo(p0.x, p0.y);
+    globals.sim_ctx.moveTo(p0.x, p0.y);
     for (let k = 1; k < 4; k++) {
         let p = body.GetWorldPoint(shape.m_vertices[k]);
-        globals.ctx.lineTo(p.x, p.y);
+        globals.sim_ctx.lineTo(p.x, p.y);
     }
-    globals.ctx.lineTo(p0.x, p0.y);
-
-    globals.ctx.fill();
-    globals.ctx.stroke();
-}
-
-drawTest = function() {
-    globals.ctx.strokeStyle = "#000";
-    globals.ctx.fillStyle = "#666";
-    globals.ctx.lineWidth = 1;
-    globals.ctx.beginPath();
-    globals.ctx.moveTo(0, 0);
-    globals.ctx.lineTo(0, 2);
-    globals.ctx.lineTo(2, 2);
-
-    globals.ctx.fill();
-    globals.ctx.stroke();
+    globals.sim_ctx.lineTo(p0.x, p0.y);
+    globals.sim_ctx.fill();
+    globals.sim_ctx.stroke();
 }
 
 getMinMaxDistance = function() {
@@ -119,16 +93,15 @@ getMinMaxDistance = function() {
     let min_y = 9999;
     let max_y = -1;
     let activeWalkerFound = false;
-    for (let k = 0; k < globals.walkers.length; k++) {
-        if (globals.walkers[k] && !globals.walkers[k].is_eliminated) {
+    for (let k = 0; k < globals.population.walkers.length; k++) {
+        let walker = globals.population.walkers[k];
+        if (walker && !walker.is_eliminated) {
             activeWalkerFound = true;
-            let dist = globals.walkers[k].torso.upper_torso.GetPosition();
+            let dist = walker.torso.upper_torso.GetPosition();
             min_x = Math.min(min_x, dist.x);
             max_x = Math.max(max_x, dist.x);
-
-            let current_head_y_for_zoom = globals.walkers[k].head.head.GetPosition().y;
-            let current_low_foot_y_for_zoom = Math.min(globals.walkers[k].left_leg.foot.GetPosition().y, globals.walkers[k].right_leg.foot.GetPosition().y);
-
+            let current_head_y_for_zoom = walker.head.head.GetPosition().y;
+            let current_low_foot_y_for_zoom = Math.min(walker.left_leg.foot.GetPosition().y, walker.right_leg.foot.GetPosition().y);
             min_y = Math.min(min_y, current_low_foot_y_for_zoom, current_head_y_for_zoom);
             max_y = Math.max(max_y, dist.y, current_head_y_for_zoom);
         }
@@ -144,103 +117,81 @@ getZoom = function(min_x, max_x, min_y, max_y) {
     let delta_y = Math.abs(max_y - min_y);
     if (delta_x === 0) delta_x = 1;
     if (delta_y === 0) delta_y = 1;
-    let zoom = Math.min(globals.main_screen.width/delta_x,globals.main_screen.height/delta_y);
+    let zoom = Math.min(globals.sim_canvas.width/delta_x,globals.sim_canvas.height/delta_y);
     return zoom;
 }
 
-drawGenePoolVisualization = function() {
-    if (!globals.gene_pool_viz_ctx || !globals.genepool) {
+drawGenePool = function() {
+    if (!globals.gp_ctx || !globals.genepool) {
         return;
     }
-
-    let ctx = globals.gene_pool_viz_ctx;
-    let canvas = globals.gene_pool_viz_canvas;
+    let context = globals.gp_ctx;
+    let canvas = globals.gp_canvas;
     let canvasWidth = canvas.width;
     let canvasHeight = canvas.height;
-
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
+    context.clearRect(0, 0, canvasWidth, canvasHeight);
     let genepool = globals.genepool;
-
     if (!genepool || genepool.tiers.length === 0 || genepool.record_score <= 0) {
-        ctx.fillStyle = "#eee";
-        ctx.fillRect(0,0, canvasWidth, canvasHeight);
-        ctx.strokeStyle = "#ccc";
-        ctx.strokeRect(0,0, canvasWidth, canvasHeight);
-        ctx.fillStyle = "#777";
-        ctx.font = "10px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("Gene Pool Empty", canvasWidth / 2, canvasHeight / 2 + 4);
+        context.fillStyle = "#eee";
+        context.fillRect(0,0, canvasWidth, canvasHeight);
+        context.strokeStyle = "#ccc";
+        context.strokeRect(0,0, canvasWidth, canvasHeight);
+        context.fillStyle = "#777";
+        context.font = "10px sans-serif";
+        context.textAlign = "center";
+        context.fillText("Gene Pool Empty", canvasWidth / 2, canvasHeight / 2 + 4);
         return;
     }
-
     let barStartScore = genepool.start_score;
     let barEndScore = genepool.record_score;
     let totalScoreRangeOnBar = barEndScore - barStartScore;
-
-    if (totalScoreRangeOnBar <= 0) { // e.g. base_threshold is 1.0, or record score too low
-        ctx.fillStyle = "#ddd"; // Different background if bar is just a point
-        ctx.fillRect(0,0, canvasWidth, canvasHeight);
-        ctx.strokeStyle = "#aaa";
-        ctx.strokeRect(0,0, canvasWidth, canvasHeight);
-        ctx.fillStyle = "#555";
-        ctx.font = "10px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("Gene Pool Range Too Small", canvasWidth / 2, canvasHeight / 2 + 4);
+    if (totalScoreRangeOnBar <= 0) {
+        context.fillStyle = "#ddd";
+        context.fillRect(0,0, canvasWidth, canvasHeight);
+        context.strokeStyle = "#aaa";
+        context.strokeRect(0,0, canvasWidth, canvasHeight);
+        context.fillStyle = "#555";
+        context.font = "10px sans-serif";
+        context.textAlign = "center";
+        context.fillText("Gene Pool Range Too Small", canvasWidth / 2, canvasHeight / 2 + 4);
         return;
     }
-
     let tierColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C"];
-
     for (let i = 0; i < genepool.tiers.length; i++) {
         let tier = genepool.tiers[i];
-
         let tierActualStartScore = tier.low_score;
         let tierActualEndScore = tier.high_score;
-
-        // Clip tier drawing to the bar's display range
         let tierDisplayStartScore = Math.max(tierActualStartScore, barStartScore);
         let tierDisplayEndScore = Math.min(tierActualEndScore, barEndScore);
-
-        if (tierDisplayEndScore <= tierDisplayStartScore) continue; // Tier segment is outside or zero width on bar
-
+        if (tierDisplayEndScore <= tierDisplayStartScore) continue;
         let tierStartPosOnBarRel = tierDisplayStartScore - barStartScore;
         let tierEndPosOnBarRel = tierDisplayEndScore - barStartScore;
-
         let tierStartX_px = (tierStartPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
         let tierEndX_px = (tierEndPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
         let tierWidth_px = tierEndX_px - tierStartX_px;
-
-        if (tierWidth_px <= 0.1) continue; // Too small to draw
-
-        ctx.fillStyle = tierColors[i % tierColors.length];
-
-        ctx.fillRect(tierStartX_px, 0, tierWidth_px, canvasHeight);
-
-        // Draw average score line if applicable
+        if (tierWidth_px <= 0.1) continue;
+        context.fillStyle = tierColors[i % tierColors.length];
+        context.fillRect(tierStartX_px, 0, tierWidth_px, canvasHeight);
         if (tier.entries.length > 0 && tier.mean_score >= tier.low_score && tier.mean_score <= tier.high_score) {
             let tierScoreRange = tier.high_score - tier.low_score;
             if (tierScoreRange > 0) {
                 let avgScorePosInTierRel = (tier.mean_score - tier.low_score) / tierScoreRange;
                 let avgLineX_px = tierStartX_px + (avgScorePosInTierRel * tierWidth_px);
-                // Make sure avg line is within the drawn segment
                 avgLineX_px = Math.max(tierStartX_px, Math.min(avgLineX_px, tierEndX_px -1));
                 let avgLineHeight_n = tier.entries.length / genepool.tier_capacity;
                 let avgLineHeight_half = Math.max(1, (canvasHeight - 4) * avgLineHeight_n) / 2.0;
                 let avgLineStartY_px = (canvasHeight / 2.0) - avgLineHeight_half;
                 let avgLineEndY_px = (canvasHeight / 2.0) + avgLineHeight_half;
-                ctx.strokeStyle = "rgba(255, 0, 0, 0.7)"; // Semi-transparent red
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(avgLineX_px, avgLineStartY_px); // Small offset from top/bottom
-                ctx.lineTo(avgLineX_px, avgLineEndY_px);
-                ctx.stroke();
+                context.strokeStyle = "rgba(255, 0, 0, 0.7)";
+                context.lineWidth = 2;
+                context.beginPath();
+                context.moveTo(avgLineX_px, avgLineStartY_px);
+                context.lineTo(avgLineX_px, avgLineEndY_px);
+                context.stroke();
             }
         }
     }
-
-    // Draw overall border for the bar
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0, 0, canvasWidth, canvasHeight);
+    context.strokeStyle = "#333";
+    context.lineWidth = 1;
+    context.strokeRect(0, 0, canvasWidth, canvasHeight);
 };

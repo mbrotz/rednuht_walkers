@@ -59,7 +59,7 @@ updateNameList = function(name_list, walker, push_to_front = false) {
     tr.appendChild(td);
     td = document.createElement("TD");
     td.className = "score";
-    td.appendChild(document.createTextNode(walker.fitness_score.toFixed(2)));
+    td.appendChild(document.createTextNode(walker.score.toFixed(2)));
     tr.appendChild(td);
     if (push_to_front === true) {
         if (name_list.firstChild) {
@@ -72,32 +72,35 @@ updateNameList = function(name_list, walker, push_to_front = false) {
     }
 }
 
-updatePopulationList = function(walkers) {
+updatePopulationList = function() {
     let ms = +Date.now();
-    if (config.render_fps > 0 && (globals.last_population_update === undefined || ms - globals.last_population_update >= 500)) {
+    if (globals.last_population_update === undefined || ms - globals.last_population_update >= 500) {
         globals.last_population_update = ms;
         let population_list = document.getElementById("population_list");
         population_list.innerHTML = "";
-        for (let k = 0; k < walkers.length; k++) {
-            updateNameList(population_list, walkers[k]);
+        for (let k = 0; k < globals.population.walkers.length; k++) {
+            updateNameList(population_list, globals.population.walkers[k]);
         }
     }
 }
 
-updateHistoryList = function(walker) {
-    let history_list = document.getElementById("history_list");
-    updateNameList(history_list, walker, true);
-    while (history_list.rows.length > globals.history.history_size) {
-        //history_list.removeChild(history_list.rows[history_list.rows.length - 1]);
-        history_list.deleteRow(-1);
+updateHistoryList = function() {
+    let ms = +Date.now();
+    if (globals.last_history_update === undefined || ms - globals.last_history_update >= 500) {
+        globals.last_history_update = ms;
+        let history_list = document.getElementById("history_list");
+        history_list.innerHTML = "";
+        for (let k = 0; k < globals.history.walkers.length; k++) {
+            updateNameList(history_list, globals.history.walkers[k], true);
+        }
     }
 }
 
-updateWalkerTotalCount = function(number) {
+updateWalkerCount = function() {
     let ms = +Date.now();
     if (globals.last_walker_count_update === undefined || ms - globals.last_walker_count_update >= 500) {
         globals.last_walker_count_update = ms;
-        document.getElementById("gen_number").innerHTML = number;
+        document.getElementById("total_walkers_created").innerHTML = globals.population.getTotalWalkersCreated();
     }
 }
 
@@ -142,15 +145,15 @@ interfaceSetup = function() {
     setupSelectControl("mutation_amount", "mutation_amount", true);
     setupSelectControl("motor_noise", "motor_noise", true);
 
-    let fps_sel = document.getElementById("render_fps");
-    if (fps_sel) {
-        for (let k = 0; k < fps_sel.options.length; k++) {
-            if (fps_sel.options[k].value == config.render_fps) {
-                fps_sel.options[k].selected = true;
+    let render_fps_sel = document.getElementById("render_fps");
+    if (render_fps_sel) {
+        for (let k = 0; k < render_fps_sel.options.length; k++) {
+            if (render_fps_sel.options[k].value == config.render_fps) {
+                render_fps_sel.options[k].selected = true;
                 break;
             }
         }
-        fps_sel.onchange = function() {
+        render_fps_sel.onchange = function() {
             setRenderFps(parseInt(this.value));
         }
     }

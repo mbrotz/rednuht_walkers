@@ -62,13 +62,11 @@ gameInit = function() {
 
     globals.world = new b2.World(new b2.Vec2(0, -10));
     globals.world.SetContactListener(new HeadFloorContactListener());
-    globals.walker_id_counter = 0;
+    globals.floor = createFloor();
 
+    globals.population = new Population(config);
     globals.history = new History(config);
     globals.genepool = new GenePool(config);
-
-    globals.walkers = createPopulation();
-    globals.floor = createFloor();
 
     drawInit();
 
@@ -77,47 +75,20 @@ gameInit = function() {
 
     globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
     if (config.render_fps > 0) {
-        globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.render_fps));
+        globals.render_interval = setInterval(drawFrame, Math.round(1000/config.render_fps));
     }
-}
 
-createPopulation = function(initial_genomes) {
-    updateWalkerTotalCount(globals.walker_id_counter);
-    let walkers = [];
-    for (let k = 0; k < config.population_size; k++) {
-        let walker = globals.genepool.createRandomWalker();
-        walker.id = ++globals.walker_id_counter;
-        walkers.push(walker);
-    }
-    return walkers;
+    globals.population.initPopulation();
+    updateWalkerCount();
+    updatePopulationList();
 }
 
 simulationStep = function() {
+    globals.population.simulationStep();
     globals.world.Step(1/config.time_step, config.velocity_iterations, config.position_iterations);
     globals.world.ClearForces();
-    updatePopulation();
-    updatePopulationList(globals.walkers);
+    updateWalkerCount();
+    updatePopulationList();
+    updateHistoryList();
 }
 
-updatePopulation = function() {
-    for (let k = 0; k < globals.walkers.length; k++) {
-        let walker = globals.walkers[k];
-        if (walker.is_eliminated) {
-            globals.genepool.addGenome(walker.genome, walker.fitness_score);
-            if (globals.history.addGenome(walker.genome, walker.fitness_score)) {
-                updateHistoryList(walker);
-            }
-            walker.destroyBody();
-            replaceWalkerAtIndex(k);
-            continue;
-        }
-        walker.simulationStep(config.motor_noise);
-    }
-}
-
-replaceWalkerAtIndex = function(index) {
-    let walker = globals.genepool.createMutatedWalker();
-    walker.id = ++globals.walker_id_counter;
-    globals.walkers[index] = walker;
-    updateWalkerTotalCount(globals.walker_id_counter);
-}

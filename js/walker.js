@@ -19,7 +19,7 @@ Walker.prototype.__constructor = function(world, genome) {
     this.initial_torso_center_x = 0;
     this.max_torso_center_x = 0;
     this.steps_without_improvement = 0;
-    this.fitness_score = 0.0;
+    this.score = 0.0;
 
     this.bd = new b2.BodyDef();
     this.bd.type = b2.Body.b2_dynamicBody;
@@ -355,7 +355,7 @@ Walker.prototype.simulationStep = function(motor_noise) {
 
         let effective_posture_modifier = (1.0 + normalized_head_y) * (1.0 + normalized_head_y);
 
-        this.fitness_score += movement_progress * effective_posture_modifier;
+        this.score += movement_progress * effective_posture_modifier;
         this.steps_without_improvement = 0;
     } else {
         this.steps_without_improvement++;

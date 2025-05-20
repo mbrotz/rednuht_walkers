@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="css/walkers.css" type="text/css" />
     <script src="js/jsbox2d.min.js"></script>
     <script src="js/walker.js"></script>
-    <script src="js/history.js"></script>
+    <script src="js/population.js"></script>
     <script src="js/genepool.js"></script>
     <script src="js/game.js"></script>
     <script src="js/floor.js"></script>
@@ -26,17 +26,16 @@
             <h3 id="page_quote"></h3>
         </header>
 
-        <div id="simulation_area">
-            <canvas id="main_screen" width="800" height="350"></canvas>
+        <div id="sim_area">
+            <canvas id="sim_canvas" width="800" height="350"></canvas>
         </div>
 
-        <div id="gene_pool_visualization_container">
-            <canvas id="gene_pool_viz_bar" width="800" height="25"></canvas>
+        <div id="gp_area">
+            <canvas id="gp_canvas" width="800" height="25"></canvas>
         </div>
 
         <div id="stats_display_area">
-            <span class="stat_item">Total Walkers: <span id="gen_number">0</span></span>
-
+            <span class="stat_item">Total Walkers: <span id="total_walkers_created">0</span></span>
         </div>
 
         <div id="info_and_controls_container">
@@ -45,9 +44,9 @@
                 <table class="name_list_table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Score</th>
+                            <th class="id">ID</th>
+                            <th class="name">Name</th>
+                            <th class="score">Score</th>
                         </tr>
                     </thead>
                     <tbody id="population_list">
@@ -60,9 +59,9 @@
                 <table class="name_list_table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Score</th>
+                            <th class="id">ID</th>
+                            <th class="name">Name</th>
+                            <th class="score">Score</th>
                         </tr>
                     </thead>
                     <tbody id="history_list">
@@ -112,8 +111,8 @@
                 </div>
 
                 <div class="control_group">
-                    <label for="draw_fps">Animation Quality <span class="control_description">- Visual update frequency. Lower saves CPU.</span></label>
-                    <select id="draw_fps">
+                    <label for="render_fps">Animation Quality <span class="control_description">- Visual update frequency. Lower saves CPU.</span></label>
+                    <select id="render_fps">
                         <option value="0">None</option>
                         <option value="10">10 FPS</option>
                         <option value="30">30 FPS</option>
@@ -139,80 +138,7 @@
         <div id="about_section_container">
             <div id="about">
                 <h2>About This Simulation</h2>
-                This simulation is an exploration into the fascinating world of genetic algorithms, where digital creatures evolve the ability to walk. You're observing a continuous process of virtual natural selection: 2D bipedal walkers are generated, live, "die" based on their performance, and are replaced by new, potentially improved offspring. The goal is to see how complex walking behaviors can emerge from simple rules and iterative refinement.
 
-                <h4>How the Genetic Algorithm Works</h4>
-                The simulation employs a genetic algorithm to guide the evolution of these walkers. Here's a breakdown of the key components:
-                <br /><br />
-                <b>1. The Walkers and Their "DNA" (Genome):</b><br />
-                Each walker possesses a unique <b>genome</b>, which is essentially its digital DNA. This genome dictates how the walker moves. It's a set of parameters (like oscillation amplitude, frequency, and phase shift) for each of its motorized joints (hips, knees, shoulders, etc.). These parameters drive a rhythmic, wave-like motion (specifically, a cosine function) for each joint, and their combination attempts to produce a coordinated gait.
-                <br /><br />
-                <b>2. The Evolutionary Cycle: Survival, Selection, and Reproduction:</b><br />
-                The core of the simulation is a continuous loop:
-                <br /><br />
-                <em>a) Living and Performing (Fitness Evaluation):</em><br />
-                Walkers attempt to move across the terrain. Their success, or <b>fitness</b>, is constantly evaluated. The primary measure of fitness is <b>how far they travel horizontally</b>.
-                However, simply sprawling forward isn't enough. To encourage "good" walking, the fitness score is significantly influenced by:
-                <ul>
-                    <li><b>Upright Posture:</b> Walkers that keep their head high relative to their feet receive a substantial bonus to their score for distance covered. This promotes a more human-like, stable gait.</li>
-                    <li><b>Sustained Progress:</b> A "pressure line" slowly advances from the starting point. If a walker falls behind this line, it's eliminated. This discourages stagnation and rewards continuous movement.</li>
-                    <li><b>Improvement:</b> If a walker makes no new forward progress for a set period, it's also eliminated.</li>
-                    <li><b>(Optional) Head Collisions:</b> A walker can also be eliminated if its head collides with the floor (configurable).</li>
-                </ul>
-                <em>b) End of Life and Legacy (The Gene Pool):</em><br />
-                When a walker is eliminated, its genome and final fitness score are recorded. These successful (or at least, not entirely unsuccessful) genomes are stored in a <b>Gene Pool</b>.
-                This isn't just a simple list. The Gene Pool is a <b>tiered system</b>:
-                <ul>
-                    <li>It organizes genomes into different performance categories (tiers) based on their score relative to the current all-time record (e.g., one tier might hold genomes that scored 60-70% of the record, another 70-80%, and so on, with elite tiers for near-record holders). The visualization bar below the simulation shows these tiers.</li>
-                    <li>Each tier has a limited capacity. This system ensures that a diverse range of "good" strategies is preserved, preventing the algorithm from focusing too narrowly on only the current top champions and allowing for a broader exploration of solutions. Progressively smaller elite tiers ensure that genomes most promising to yield a new record are preserved.</li>
-                </ul>
-                <em>c) Choosing a Parent (Parent Selection):</em><br />
-                To create a new walker to replace the one that was eliminated, a <b>parent genome</b> is selected from the Gene Pool.
-                <ul>
-                    <li>The selection process favors genomes from higher-performing tiers (those closer to the record score). However, there's still a chance of selecting from slightly lower, but still competent, tiers, with selection probability weighted by tier performance.</li>
-                    <li>Within the chosen tier, a genome is selected randomly.</li>
-                    <li>This strategy balances <b>exploitation</b> (using proven, high-quality genomes) with <b>exploration</b> (giving other good-but-not-best genomes a chance to contribute). If the gene pool is empty (e.g., at the very start of the simulation), a new walker with a randomly generated genome is created as a baseline.</li>
-                </ul>
-                <em>d) Creating the Next Generation (Mutation & Replacement):</em><br />
-                The selected parent genome is <b>cloned</b>, and then <b>mutated</b>.
-                <ul>
-                    <li>Mutation introduces small, random variations into the offspring's genome (e.g., slightly altering a motor's speed, timing, or amplitude parameters). This is the primary driver of evolutionary novelty, allowing new traits and behaviors to emerge. The rate and magnitude of these mutations are configurable.</li>
-                    <li>The newly created walker, with its mutated genome, immediately joins the simulation, starting its own attempt to survive and thrive.</li>
-                </ul>
-                This cycle repeats continuously, with each generation hopefully building upon the successes (and learning from the failures) of its predecessors.
-                <br /><br />
-                <b>3. What's in a Name? (Creature Naming):</b><br />
-                The walkers are given names in a "Genus species" format (e.g., "Xylobo Androver"). These names aren't random; they are procedurally generated based on the numerical values within their unique genome. As a result, walkers with similar names often share similar genetic traits and may exhibit comparable walking styles or body mechanics.
-                <br /><br />
-                <b>4. You're in Control (Simulation Parameters):</b><br />
-                The simulation offers several controls that allow you to influence the evolutionary process. You can adjust:
-                <ul>
-                    <li><b>Mutation Settings:</b> The probability of a gene mutating and the maximum extent of that change.</li>
-                    <li><b>Motor Instability:</b> The amount of random noise applied to motor speeds, testing the robustness of evolved gaits.</li>
-                    <li><b>Simulation Speed & Animation Quality:</b> Balance the speed of evolution with visual detail and computational load.</li>
-                </ul>
-                By observing and tweaking these parameters, you can witness the power of evolutionary algorithms in action, as these simple digital beings strive towards the seemingly simple, yet remarkably complex, goal of walking.
-                <br /><br />
-
-                <h4>Can I give you riches and wealth?</h4>
-                Yes, but I'll use them to buy coffee.<br />
-                <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
-                    <input type="hidden" name="cmd" value="_s-xclick">
-                    <input type="hidden" name="hosted_button_id" value="8HTQYLZV8ALMQ">
-                    <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
-                    <img alt="" border="0" src="https://www.paypalobjects.com/pt_BR/i/scr/pixel.gif" width="1" height="1">
-                </form>
-                <br />
-
-                <h4>Who made this?</h4>
-                This exercise in pointless science is brought to you by <a href="http://rednuht.org">rednuht.org</a> (which
-                is really just one guy).
-                <br /><br />
-                Physics engine brought to you by the amazing <a href="http://box2d.org/">Erin Catto</a>, I'm using the
-                very nice <a href="https://code.google.com/p/jsbox2d/">JS port by Paril</a>.
-                <br /><br />
-                Additional code by Leif Johnson.
-                <br /><br />
             </div>
         </div>
 
