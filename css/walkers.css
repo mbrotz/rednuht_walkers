@@ -1,4 +1,4 @@
-* {
+﻿* {
     margin: 0;
     padding: 0;
     border: 0;
@@ -58,7 +58,7 @@ select {
     padding-bottom: 20px;
 }
 
-#sim_area {
+#simulation_area {
     text-align: center;
 }
 
@@ -66,13 +66,13 @@ select {
     border: 1px solid #888;
 }
 
-#gp_area {
+#genepool_area, #mapelites_area {
     text-align: center;
     margin-top: 5px;
     margin-bottom: 10px;
 }
 
-#gp_canvas {
+#genepool_canvas, #mapelites_canvas {
     border: 1px solid #aaa;
 }
 

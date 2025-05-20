@@ -19,7 +19,7 @@ Population.prototype.getTotalWalkersCreated = function() {
 
 Population.prototype.initPopulation = function() {
     while (this.walkers.length < this.population_size) {
-        let walker = globals.genepool.createRandomWalker();
+        let walker = globals.mapelites.createRandomWalker();
         walker.id = this.getNextWalkerId();
         this.walkers.push(walker);
     }
@@ -29,10 +29,9 @@ Population.prototype.simulationStep = function() {
     for (let k = 0; k < this.walkers.length; k++) {
         let walker = this.walkers[k];
         if (walker.is_eliminated) {
-            globals.genepool.addWalker(walker);
-            globals.history.addWalker(walker);
+            globals.mapelites.addWalker(walker);
             walker.destroyBody();
-            walker = globals.genepool.createMutatedWalker()
+            walker = globals.mapelites.createMutatedWalker()
             walker.id = this.getNextWalkerId();
             this.walkers[k] = walker;
         }
@@ -50,6 +49,7 @@ History.prototype.__constructor = function(config) {
     this.history_size = config.history_size;
     this.walkers = [];
     this.record_score = 0.0;
+    this.record_holder = null;
 }
 
 History.prototype._maintainSize = function() {
@@ -58,19 +58,40 @@ History.prototype._maintainSize = function() {
     }
 }
 
-History.prototype.addWalker = function(walker) {
-    if (walker.score > this.record_score) {
-        this.walkers.push({
+History.prototype.addWalker = function(walker, allow_non_highscore = false) {
+    let is_highscore = walker.score > this.record_score;
+    if (is_highscore || allow_non_highscore === true) {
+        let entry = {
             id: walker.id,
             name: walker.name,
             score: walker.score,
             mean_head_height: walker.mean_head_height,
             mean_forward_velocity: walker.mean_forward_velocity,
             genome: JSON.stringify(walker.genome),
-        });
-        this.record_score = walker.score;
+        };
+        this.walkers.push(entry);
+        if (is_highscore) {
+            this.record_holder = entry;
+            this.record_score = entry.score;
+        } else {
+            this.walkers.sort((a, b) => {
+                if (a.score < b.score)
+                    return -1;
+                if (a.score > b.score)
+                    return 1;
+                if (a.mean_head_height < b.mean_head_height)
+                    return -1;
+                if (a.mean_head_height > b.mean_head_height)
+                    return 1;
+                if (a.mean_forward_velocity < b.mean_forward_velocity)
+                    return -1;
+                if (a.mean_forward_velocity > b.mean_forward_velocity)
+                    return 1;
+                return 0;
+            });
+        }
         this._maintainSize();
-        return true;
+        return is_highscore;
     }
     return false;
 }

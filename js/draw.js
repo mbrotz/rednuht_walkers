@@ -2,8 +2,10 @@
 drawInit = function() {
     globals.sim_canvas = document.getElementById("sim_canvas");
     globals.sim_ctx = sim_canvas.getContext("2d");
-    globals.gp_canvas = document.getElementById("gp_canvas");
-    globals.gp_ctx = globals.gp_canvas.getContext("2d");
+    globals.mapelites_canvas = document.getElementById("mapelites_canvas");
+    globals.mapelites_ctx = globals.mapelites_canvas.getContext("2d");
+    globals.genepool_canvas = document.getElementById("genepool_canvas");
+    globals.genepool_ctx = globals.genepool_canvas.getContext("2d");
     resetCamera();
 }
 
@@ -32,6 +34,7 @@ drawFrame = function() {
         }
     }
     globals.sim_ctx.restore();
+    drawMapElites();
     drawGenePool();
 }
 
@@ -120,17 +123,30 @@ getZoom = function(min_x, max_x, min_y, max_y) {
     return zoom;
 }
 
-drawGenePool = function() {
-    if (!globals.gp_ctx || !globals.genepool) {
+drawMapElites = function() {
+    if (!globals.mapelites_ctx || !globals.mapelites) {
         return;
     }
-    let context = globals.gp_ctx;
-    let canvas = globals.gp_canvas;
+    let context = globals.mapelites_ctx;
+    let canvas = globals.mapelites_canvas;
+    let canvasWidth = canvas.width;
+    let canvasHeight = canvas.height;
+    context.clearRect(0, 0, canvasWidth, canvasHeight);
+    
+    
+}
+
+drawGenePool = function() {
+    if (!globals.genepool_ctx || !globals.genepool) {
+        return;
+    }
+    let context = globals.genepool_ctx;
+    let canvas = globals.genepool_canvas;
     let canvasWidth = canvas.width;
     let canvasHeight = canvas.height;
     context.clearRect(0, 0, canvasWidth, canvasHeight);
     let genepool = globals.genepool;
-    if (!genepool || genepool.tiers.length === 0 || genepool.record_score <= 0) {
+    if (genepool.tiers.length === 0 || genepool.history.record_score <= 0) {
         context.fillStyle = "#eee";
         context.fillRect(0,0, canvasWidth, canvasHeight);
         context.strokeStyle = "#ccc";
@@ -142,7 +158,7 @@ drawGenePool = function() {
         return;
     }
     let barStartScore = genepool.start_score;
-    let barEndScore = genepool.record_score;
+    let barEndScore = genepool.history.record_score;
     let totalScoreRangeOnBar = barEndScore - barStartScore;
     if (totalScoreRangeOnBar <= 0) {
         context.fillStyle = "#ddd";
@@ -170,7 +186,7 @@ drawGenePool = function() {
         let tierWidth_px = tierEndX_px - tierStartX_px;
         if (tierWidth_px <= 0.1) continue;
         context.fillStyle = tierColors[i % tierColors.length];
-        context.fillRect(tierStartX_px, 0, tierWidth_px, canvasHeight);
+        context.fillRect(tierStartX_px, 0, tierWidth_px + 2, canvasHeight);
         if (tier.entries.length > 0 && tier.mean_score >= tier.low_score && tier.mean_score <= tier.high_score) {
             let tierScoreRange = tier.high_score - tier.low_score;
             if (tierScoreRange > 0) {
@@ -190,7 +206,4 @@ drawGenePool = function() {
             }
         }
     }
-    context.strokeStyle = "#333";
-    context.lineWidth = 1;
-    context.strokeRect(0, 0, canvasWidth, canvasHeight);
 };

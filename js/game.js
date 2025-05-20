@@ -12,11 +12,14 @@
 
     population_size: 40,
     history_size: 40,
+    
+    mapelites_height_bins: 20,
+    mapelites_bin_selection_pressure: 4.0,
 
     genepool_threshold: 0.25,
     genepool_range_decay: 0.9,
     genepool_tiers: 40,
-    genepool_tier_capacity: 40,
+    genepool_tier_capacity: 4,
     genepool_tier_selection_pressure: 10.0,
     genepool_gene_mutation_chance: 1.0,
     genepool_gene_mutation_strength: 0.05,
@@ -83,9 +86,10 @@ gameInit = function() {
     globals.world.SetContactListener(new HeadFloorContactListener());
     globals.floor = createFloor();
 
+    globals.mapelites = new MapElites(config);
+    globals.genepool = globals.mapelites.bins[0].genepool;
+    globals.history = globals.mapelites.history;
     globals.population = new Population(config);
-    globals.history = new History(config);
-    globals.genepool = new GenePool(config);
 
     drawInit();
 
