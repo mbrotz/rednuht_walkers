@@ -31,7 +31,9 @@
     head_floor_collision_kills: false,
 };
 
-globals = {};
+globals = {
+    selectedMapElitesBin: -1,
+};
 
 function gaussianRandom(mean = 0, stdev = 1) {
     const u = 1 - Math.random();
@@ -80,18 +82,17 @@ function createFloor() {
 }
 
 gameInit = function() {
-    interfaceSetup();
-
     globals.world = new b2.World(new b2.Vec2(0, -10));
     globals.world.SetContactListener(new HeadFloorContactListener());
     globals.floor = createFloor();
 
-    globals.mapelites = new MapElites(config);
-    globals.genepool = globals.mapelites.bins[0].genepool;
-    globals.history = globals.mapelites.history;
     globals.population = new Population(config);
+    globals.mapelites = new MapElites(config);
+    globals.genepool = null;
+    globals.history = globals.mapelites.history;
 
     drawInit();
+    interfaceSetup();
 
     setQuote();
     setInterval(setQuote, 60000);

@@ -72,9 +72,9 @@ updateNameList = function(name_list, walker, is_history = false) {
     }
 }
 
-updatePopulationList = function() {
+updatePopulationList = function(force = false) {
     let ms = +Date.now();
-    if (globals.last_population_update === undefined || ms - globals.last_population_update >= 500) {
+    if (force === true || globals.last_population_update === undefined || ms - globals.last_population_update >= 500) {
         globals.last_population_update = ms;
         let population_list = document.getElementById("population_list");
         population_list.innerHTML = "";
@@ -84,9 +84,9 @@ updatePopulationList = function() {
     }
 }
 
-updateHistoryList = function() {
+updateHistoryList = function(force = false) {
     let ms = +Date.now();
-    if (globals.last_history_update === undefined || ms - globals.last_history_update >= 500) {
+    if (force === true || globals.last_history_update === undefined || ms - globals.last_history_update >= 500) {
         globals.last_history_update = ms;
         let history_list = document.getElementById("history_list");
         history_list.innerHTML = "";
@@ -170,4 +170,61 @@ interfaceSetup = function() {
             setSimulationFps(parseInt(this.value));
         }
     }
+    
+    if (globals.mapelites_canvas) {
+        globals.mapelites_canvas.addEventListener('click', function(e) { 
+            handleMapElitesClick(e); 
+        });
+    }
+
+    document.body.addEventListener('click', function(event) {
+        if (globals.selectedMapElitesBin !== -1) {
+            const target = event.target;
+            if (globals.mapelites_canvas && (target === globals.mapelites_canvas || globals.mapelites_canvas.contains(target))) {
+                return;
+            }
+            const protectedAreas = [
+                globals.genepool_canvas,
+                document.getElementById('history_panel'),
+                document.getElementById('population_panel'),
+                document.getElementById('controls_settings_panel'),
+            ];
+            for (const area of protectedAreas) {
+                if (area && (target === area || area.contains(target))) {
+                    return;
+                }
+            }
+            deselectMapElitesBin();
+        }
+    });
+}
+
+function handleMapElitesClick(event) {
+    if (!globals.mapelites || !globals.mapelites.bins || globals.mapelites.bins.length === 0) {
+        return;
+    }
+    const canvas = globals.mapelites_canvas;
+    const rect = canvas.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const binWidth = canvas.width / globals.mapelites.bins.length;
+    const clickedBinIndex = Math.floor(clickX / binWidth);
+    if (clickedBinIndex >= 0 && clickedBinIndex < globals.mapelites.bins.length) {
+        globals.selectedMapElitesBin = clickedBinIndex;
+        const selectedBin = globals.mapelites.bins[clickedBinIndex];
+        globals.genepool = selectedBin.genepool;
+        globals.history = selectedBin.genepool.history;
+        drawMapElites();
+        drawGenePool();
+        updateHistoryList(true);
+    }
+}
+
+function deselectMapElitesBin() {
+    if (globals.selectedMapElitesBin === -1) return;
+    globals.selectedMapElitesBin = -1;
+    globals.genepool = null; 
+    globals.history = globals.mapelites.history; 
+    drawMapElites();
+    drawGenePool();
+    updateHistoryList(true); 
 }
