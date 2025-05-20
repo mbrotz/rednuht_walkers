@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="css/walkers.css" type="text/css" />
     <script src="js/jsbox2d.min.js"></script>
     <script src="js/walker.js"></script>
+    <script src="js/history.js"></script>
     <script src="js/genepool.js"></script>
     <script src="js/game.js"></script>
     <script src="js/floor.js"></script>
@@ -39,31 +40,32 @@
         </div>
 
         <div id="info_and_controls_container">
-            <div class="info_panel" id="active_population_panel">
+            <div class="info_panel" id="population_panel">
                 <h2>Active Population</h2>
                 <table class="name_list_table">
                     <thead>
                         <tr>
+                            <th>ID</th>
                             <th>Name</th>
                             <th>Score</th>
                         </tr>
                     </thead>
-                    <tbody id="name_list">
+                    <tbody id="population_list">
                     </tbody>
                 </table>
             </div>
 
-            <div class="info_panel" id="record_history_panel">
+            <div class="info_panel" id="history_panel">
                 <h2>Record History</h2>
                 <table class="name_list_table">
                     <thead>
                         <tr>
-                            <th>Walker ID</th>
+                            <th>ID</th>
                             <th>Name</th>
                             <th>Score</th>
                         </tr>
                     </thead>
-                    <tbody id="champ_list">
+                    <tbody id="history_list">
                     </tbody>
                 </table>
             </div>

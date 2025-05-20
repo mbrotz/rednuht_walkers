@@ -1,21 +1,27 @@
 ﻿config = {
-    motor_noise: 0.0,
     time_step: 60,
     simulation_fps: 60,
-    draw_fps: 60,
+    render_fps: 60,
     velocity_iterations: 8,
     position_iterations: 3,
     max_zoom_factor: 130,
+    max_floor_tiles: 200,
+
     mutation_chance: 1,
     mutation_amount: 0.05,
-    max_floor_tiles: 200,
+    motor_noise: 0.0,
+
     population_size: 40,
+    history_size: 40,
+
     genepool_threshold: 0.25,
+    genepool_range_decay: 0.9,
     genepool_tiers: 40,
     genepool_tier_capacity: 10,
-    genepool_range_decay: 0.9,
-    genepool_selection_pressure: 10.0,
-    record_history_display_limit: 40,
+    genepool_tier_selection_pressure: 10.0,
+    genepool_gene_mutation_chance: 1.0,
+    genepool_gene_mutation_strength: 0.05,
+
     max_reasonable_head_height: 1.5,
     pressure_line_starting_offset: 1.75,
     pressure_line_base_speed: 0.001,
@@ -25,6 +31,13 @@
 };
 
 globals = {};
+
+function gaussianRandom(mean = 0, stdev = 1) {
+    const u = 1 - Math.random();
+    const v = Math.random();
+    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    return z * stdev + mean;
+}
 
 function HeadFloorContactListener() {}
 HeadFloorContactListener.prototype = new b2.ContactListener();
@@ -51,11 +64,9 @@ gameInit = function() {
     globals.world.SetContactListener(new HeadFloorContactListener());
     globals.walker_id_counter = 0;
 
-    globals.champion_genomes = [];
-
+    globals.history = new History(config);
     globals.genepool = new GenePool(config);
 
-    globals.last_record = 0;
     globals.walkers = createPopulation();
     globals.floor = createFloor();
 
@@ -65,168 +76,48 @@ gameInit = function() {
     setInterval(setQuote, 60000);
 
     globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
-    if(config.draw_fps > 0) {
-        globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.draw_fps));
-    }
-}
-
-simulationStep = function() {
-    if (config.draw_fps > 0) {
-        simulationSingleStep();
-    } else {
-
-        for (let i = 0; i < 10; i++) {
-            simulationSingleStep();
-        }
-    }
-}
-
-simulationSingleStep = function() {
-    globals.world.Step(1/config.time_step, config.velocity_iterations, config.position_iterations);
-    globals.world.ClearForces();
-    populationSimulationStep();
-}
-
-setSimulationFps = function(fps) {
-    config.simulation_fps = fps;
-    clearInterval(globals.simulation_interval);
-    if(fps > 0) {
-        globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
-        if(globals.paused) {
-            globals.paused = false;
-            if(config.draw_fps > 0) {
-                globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.draw_fps));
-            }
-        }
-    } else {
-        clearInterval(globals.draw_interval);
-        globals.paused = true;
+    if (config.render_fps > 0) {
+        globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.render_fps));
     }
 }
 
 createPopulation = function(initial_genomes) {
     updateWalkerTotalCount(globals.walker_id_counter);
     let walkers = [];
-    for(let k = 0; k < config.population_size; k++) {
-        globals.walker_id_counter++;
-        let walker;
-
-        walker = new Walker(globals.world);
-        walker.id = globals.walker_id_counter;
+    for (let k = 0; k < config.population_size; k++) {
+        let walker = globals.genepool.createRandomWalker();
+        walker.id = ++globals.walker_id_counter;
         walkers.push(walker);
     }
     return walkers;
 }
 
-populationSimulationStep = function() {
+simulationStep = function() {
+    globals.world.Step(1/config.time_step, config.velocity_iterations, config.position_iterations);
+    globals.world.ClearForces();
+    updatePopulation();
+    updatePopulationList(globals.walkers);
+}
 
-    for(let k = 0; k < config.population_size; k++) {
-        if(!globals.walkers[k].is_eliminated) {
-            globals.walkers[k].simulationStep(config.motor_noise);
-        } else {
-            if(!globals.walkers[k].processed_after_elimination) {
-                let eliminatedWalker = globals.walkers[k];
-                let eliminatedWalkerScore = eliminatedWalker.fitness_score;
-                let eliminatedWalkerGenome = JSON.parse(JSON.stringify(eliminatedWalker.genome));
-
-                if(eliminatedWalkerScore > globals.last_record) {
-                    globals.last_record = eliminatedWalkerScore;
-                    printChampion(eliminatedWalker);
-
-                    globals.champion_genomes.unshift({genome: eliminatedWalkerGenome, score: eliminatedWalkerScore});
-                    while(globals.champion_genomes.length > config.record_history_display_limit) {
-                        globals.champion_genomes.pop();
-                    }
-                }
-
-                globals.genepool.addGenome(eliminatedWalkerGenome, eliminatedWalkerScore);
-
-                for(let l = 0; l < eliminatedWalker.bodies.length; l++) {
-                    if(eliminatedWalker.bodies[l]) {
-                        globals.world.DestroyBody(eliminatedWalker.bodies[l]);
-                        eliminatedWalker.bodies[l] = null;
-                    }
-                }
-                eliminatedWalker.processed_after_elimination = true;
-
-                replaceWalkerAtIndex(k);
+updatePopulation = function() {
+    for (let k = 0; k < globals.walkers.length; k++) {
+        let walker = globals.walkers[k];
+        if (walker.is_eliminated) {
+            globals.genepool.addGenome(walker.genome, walker.fitness_score);
+            if (globals.history.addGenome(walker.genome, walker.fitness_score)) {
+                updateHistoryList(walker);
             }
+            walker.destroyBody();
+            replaceWalkerAtIndex(k);
+            continue;
         }
+        walker.simulationStep(config.motor_noise);
     }
-    printNames(globals.walkers);
 }
 
 replaceWalkerAtIndex = function(index) {
-    let parent_genome = pickParentGenome();
-
-    let new_genome = cloneAndMutate(parent_genome);
-
-    globals.walker_id_counter++;
-    let new_walker = new Walker(globals.world, new_genome);
-    new_walker.id = globals.walker_id_counter;
-
-    globals.walkers[index] = new_walker;
+    let walker = globals.genepool.createMutatedWalker();
+    walker.id = ++globals.walker_id_counter;
+    globals.walkers[index] = walker;
     updateWalkerTotalCount(globals.walker_id_counter);
-}
-
-pickParentGenome = function() {
-    let parent_genome = globals.genepool.selectParentGenome();
-
-    if (!parent_genome) {
-
-        let tempWalker = new Walker(globals.world);
-        parent_genome = tempWalker.genome;
-
-        for(let l = 0; l < tempWalker.bodies.length; l++) {
-            if(tempWalker.bodies[l]) {
-                globals.world.DestroyBody(tempWalker.bodies[l]);
-            }
-        }
-    }
-
-    return parent_genome;
-}
-
-cloneAndMutate = function(parent_genome) {
-    if (!parent_genome) {
-        console.error("Attempted to clone a null or undefined genome. Creating a new random genome for mutation.");
-        let tempWalker = new Walker(globals.world);
-        let randomGenome = tempWalker.genome;
-        for(let l = 0; l < tempWalker.bodies.length; l++) {
-            if(tempWalker.bodies[l]) globals.world.DestroyBody(tempWalker.bodies[l]);
-        }
-        parent_genome = randomGenome;
-    }
-
-    let new_genome = JSON.parse(JSON.stringify(parent_genome));
-    let mutated = false;
-
-    for (let k = 0; k < new_genome.length; k++) {
-        for (let g_prop in new_genome[k]) {
-            if (new_genome[k].hasOwnProperty(g_prop)) {
-                if (Math.random() < config.mutation_chance) {
-                    //new_genome[k][g_prop] = new_genome[k][g_prop] * (1 + config.mutation_amount * (Math.random() * 2 - 1));
-                    new_genome[k][g_prop] = new_genome[k][g_prop] * gaussianRandom(1, config.mutation_amount);
-                    mutated = true;
-                }
-            }
-        }
-    }
-
-    if (config.mutation_chance > 0 && !mutated && new_genome.length > 0) {
-        let attempts = 0;
-        while(!mutated && attempts < new_genome.length * Object.keys(new_genome[0]).length * 2) {
-            let gene_idx = Math.floor(Math.random() * new_genome.length);
-            let props = Object.keys(new_genome[gene_idx]);
-            if (props.length > 0) {
-                let prop_idx = Math.floor(Math.random() * props.length);
-                let g_prop_to_mutate = props[prop_idx];
-                new_genome[gene_idx][g_prop_to_mutate] = new_genome[gene_idx][g_prop_to_mutate] * (1 + config.mutation_amount * (Math.random() * 2 - 1));
-                mutated = true;
-            }
-            attempts++;
-        }
-    }
-
-    return new_genome;
 }

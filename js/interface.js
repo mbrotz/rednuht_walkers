@@ -21,57 +21,75 @@
     "From primordial soup to... well, this."
 ];
 
-printNames = function(walkers) {
-    let ms = +Date.now();
-    if (config.draw_fps > 0 && (globals.last_population_update === undefined || ms - globals.last_population_update >= 500)) {
-        globals.last_population_update = ms;
-        let name_list = document.getElementById("name_list");
-        name_list.innerHTML = "";
-        for(let k = 0; k < walkers.length; k++) {
-            let tr = document.createElement("TR");
-            let td = document.createElement("TD");
-            td.className = "name";
-            td.appendChild(document.createTextNode(walkers[k].name));
-            tr.appendChild(td);
+setRenderFps = function(fps) {
+    config.render_fps = fps;
+    if (globals.render_interval)
+        clearInterval(globals.render_interval);
+    if (fps > 0 && config.simulation_fps > 0) {
+        globals.render_interval = setInterval(drawFrame, Math.round(1000/config.render_fps));
+    }
+}
 
-            td = document.createElement("TD");
-            td.className = "score";
+setSimulationFps = function(fps) {
+    config.simulation_fps = fps;
+    clearInterval(globals.simulation_interval);
+    if (fps > 0) {
+        globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
+        if (globals.paused) {
+            globals.paused = false;
+            if (config.render_fps > 0) {
+                globals.render_interval = setInterval(drawFrame, Math.round(1000/config.render_fps));
+            }
+        }
+    } else {
+        clearInterval(globals.render_interval);
+        globals.paused = true;
+    }
+}
 
-            td.appendChild(document.createTextNode(walkers[k].fitness_score.toFixed(2)));
-            tr.appendChild(td);
+updateNameList = function(name_list, walker, push_to_front = false) {
+    let tr = document.createElement("TR");
+    let td = document.createElement("TD");
+    td.className = "id";
+    td.appendChild(document.createTextNode(walker.id));
+    tr.appendChild(td);
+    td = document.createElement("TD");
+    td.className = "name";
+    td.appendChild(document.createTextNode(walker.name));
+    tr.appendChild(td);
+    td = document.createElement("TD");
+    td.className = "score";
+    td.appendChild(document.createTextNode(walker.fitness_score.toFixed(2)));
+    tr.appendChild(td);
+    if (push_to_front === true) {
+        if (name_list.firstChild) {
+            name_list.insertBefore(tr, name_list.firstChild)
+        } else {
             name_list.appendChild(tr);
+        }
+    } else {
+        name_list.appendChild(tr);
+    }
+}
+
+updatePopulationList = function(walkers) {
+    let ms = +Date.now();
+    if (config.render_fps > 0 && (globals.last_population_update === undefined || ms - globals.last_population_update >= 500)) {
+        globals.last_population_update = ms;
+        let population_list = document.getElementById("population_list");
+        population_list.innerHTML = "";
+        for (let k = 0; k < walkers.length; k++) {
+            updateNameList(population_list, walkers[k]);
         }
     }
 }
 
-printChampion = function(walker) {
-    let champ_list = document.getElementById("champ_list");
-    let tr = document.createElement("TR");
-
-    let tdId = document.createElement("TD");
-    tdId.className = "generation";
-    tdId.appendChild(document.createTextNode(walker.id));
-    tr.appendChild(tdId);
-
-    let tdName = document.createElement("TD");
-    tdName.className = "name";
-    tdName.appendChild(document.createTextNode(walker.name));
-    tr.appendChild(tdName);
-
-    let tdScore = document.createElement("TD");
-    tdScore.className = "score";
-
-    tdScore.appendChild(document.createTextNode(walker.fitness_score.toFixed(2)));
-    tr.appendChild(tdScore);
-
-    if (champ_list.firstChild) {
-        champ_list.insertBefore(tr, champ_list.firstChild);
-    } else {
-        champ_list.appendChild(tr);
-    }
-
-    while (champ_list.rows.length > config.record_history_display_limit) {
-        champ_list.removeChild(champ_list.rows[champ_list.rows.length - 1]);
+updateHistoryList = function(walker) {
+    let history_list = document.getElementById("history_list");
+    updateNameList(history_list, walker, true);
+    while (history_list.rows.length > globals.history.history_size) {
+        //history_list.removeChild(history_list.rows[history_list.rows.length - 1]);
+        history_list.deleteRow(-1);
     }
 }
 
@@ -124,23 +142,23 @@ interfaceSetup = function() {
     setupSelectControl("mutation_amount", "mutation_amount", true);
     setupSelectControl("motor_noise", "motor_noise", true);
 
-    let fps_sel = document.getElementById("draw_fps");
+    let fps_sel = document.getElementById("render_fps");
     if (fps_sel) {
-        for(let k = 0; k < fps_sel.options.length; k++) {
-            if(fps_sel.options[k].value == config.draw_fps) {
+        for (let k = 0; k < fps_sel.options.length; k++) {
+            if (fps_sel.options[k].value == config.render_fps) {
                 fps_sel.options[k].selected = true;
                 break;
             }
         }
         fps_sel.onchange = function() {
-            setFps(parseInt(this.value));
+            setRenderFps(parseInt(this.value));
         }
     }
 
     let simulation_fps_sel = document.getElementById("simulation_fps");
     if (simulation_fps_sel) {
-        for(let k = 0; k < simulation_fps_sel.options.length; k++) {
-            if(simulation_fps_sel.options[k].value == config.simulation_fps) {
+        for (let k = 0; k < simulation_fps_sel.options.length; k++) {
+            if (simulation_fps_sel.options[k].value == config.simulation_fps) {
                 simulation_fps_sel.options[k].selected = true;
                 break;
             }

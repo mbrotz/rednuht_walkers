@@ -1,25 +1,20 @@
 ﻿
-function gaussianRandom(mean = 0, stdev = 1) {
-    const u = 1 - Math.random();
-    const v = Math.random();
-    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
-    return z * stdev + mean;
-}
-
 let GenePool = function() {
     this.__constructor.apply(this, arguments);
 }
 
 GenePool.prototype.__constructor = function(config) {
     this.threshold = config.genepool_threshold;
+    this.range_decay = config.genepool_range_decay;
     this.range = 1.0 - config.genepool_threshold;
     this.num_tiers = config.genepool_tiers;
     this.tier_capacity = config.genepool_tier_capacity;
-    this.range_decay = config.genepool_range_decay;
-    this.selection_pressure = config.genepool_selection_pressure;
+    this.tier_selection_pressure = config.genepool_tier_selection_pressure;
+    this.gene_mutation_chance = config.genepool_gene_mutation_chance;
+    this.gene_mutation_strength = config.genepool_gene_mutation_strength;
 
     this.start_score = 0.0;
-    this.current_record_score = 0.0;
+    this.record_score = 0.0;
     this.tiers = [];
 
     let current_range = this.range;
@@ -154,11 +149,11 @@ GenePool.prototype._adjust_entries = function() {
 }
 
 GenePool.prototype._adjust_tiers = function(score) {
-    if (score <= 0.0 || this.current_record_score >= score) {
+    if (score <= 0.0 || this.record_score >= score) {
         return;
     }
     this.start_score = this.threshold * score;
-    this.current_record_score = score;
+    this.record_score = score;
     for (let i = 0; i < this.num_tiers; i++) {
         let tier = this.tiers[i];
         tier.low_score = tier.low * score;
@@ -181,7 +176,10 @@ GenePool.prototype._place_genome = function(genome, score) {
                     this._remove_oldest_entry(i);
                 }
             }
-            tier.entries.push({ genome: JSON.stringify(genome), score: score });
+            tier.entries.push({
+                genome: JSON.stringify(genome),
+                score: score,
+            });
             this._update_mean(i, score);
             return i;
         }
@@ -189,14 +187,6 @@ GenePool.prototype._place_genome = function(genome, score) {
     }
     return -1;
 }
-
-GenePool.prototype.addGenome = function(genome, score) {
-    if (this.num_tiers === 0 || this.tier_capacity === 0) {
-        return -1;
-    }
-    this._adjust_tiers(score);
-    return this._place_genome(genome, score);
-};
 
 GenePool.prototype._selectEligibleTiers = function() {
     let result = [];
@@ -208,7 +198,7 @@ GenePool.prototype._selectEligibleTiers = function() {
     if (result.length <= 1) {
         return result;
     }
-    let rank_increment = 1.0 / (result.length - 1) * Math.max(0.0, this.selection_pressure - 1.0);
+    let rank_increment = 1.0 / (result.length - 1) * Math.max(0.0, this.tier_selection_pressure - 1.0);
     let rank_sum = 0.0;
     for (let i = 0; i < result.length; i++) {
         let rank = 1.0 + rank_increment * i;
@@ -262,6 +252,32 @@ GenePool.prototype._selectEligibleTierWeighted = function(eligible_tiers) {
     return eligible_tiers[eligible_tiers.length-1].tier;
 }
 
+GenePool.prototype._mutateGenome = function(genome) {
+    let mutated = false;
+    while (!mutated) {
+        for (let k = 0; k < genome.length; k++) {
+            for (let g_prop in genome[k]) {
+                if (genome[k].hasOwnProperty(g_prop)) {
+                    if (Math.random() < this.gene_mutation_chance) {
+                        //genome[k][g_prop] = genome[k][g_prop] * (1 + config.mutation_amount * (Math.random() * 2 - 1));
+                        genome[k][g_prop] = genome[k][g_prop] * gaussianRandom(1, this.gene_mutation_strength);
+                        mutated = true;
+                    }
+                }
+            }
+        }
+    }
+    return genome;
+}
+
+GenePool.prototype.addGenome = function(genome, score) {
+    if (this.num_tiers === 0 || this.tier_capacity === 0) {
+        return -1;
+    }
+    this._adjust_tiers(score);
+    return this._place_genome(genome, score);
+};
+
 GenePool.prototype.selectParentGenome = function() {
     if (this.num_tiers === 0 || this.tier_capacity === 0) {
         return null;
@@ -273,3 +289,15 @@ GenePool.prototype.selectParentGenome = function() {
         return JSON.parse(selected_parent.genome);
     return null;
 };
+
+GenePool.prototype.createRandomWalker = function() {
+    return new Walker(globals.world);
+}
+
+GenePool.prototype.createMutatedWalker = function() {
+    let genome = this.selectParentGenome();
+    if (!genome) {
+        return this.createRandomWalker();
+    }
+    return new Walker(globals.world, this._mutateGenome(genome));
+}

@@ -1,4 +1,5 @@
-﻿drawInit = function() {
+﻿
+drawInit = function() {
     globals.main_screen = document.getElementById("main_screen");
     globals.ctx = main_screen.getContext("2d");
 
@@ -18,15 +19,6 @@ resetCamera = function() {
     globals.translate_y = 280;
 }
 
-setFps = function(fps) {
-    config.draw_fps = fps;
-    if(globals.draw_interval)
-        clearInterval(globals.draw_interval);
-    if(fps > 0 && config.simulation_fps > 0) {
-        globals.draw_interval = setInterval(drawFrame, Math.round(1000/config.draw_fps));
-    }
-}
-
 drawFrame = function() {
     let minmax = getMinMaxDistance();
     globals.target_zoom = Math.min(config.max_zoom_factor, getZoom(minmax.min_x, minmax.max_x + 4, minmax.min_y + 2, minmax.max_y + 2.5));
@@ -39,9 +31,8 @@ drawFrame = function() {
     globals.ctx.translate(globals.translate_x*globals.zoom, globals.translate_y);
     globals.ctx.scale(globals.zoom, -globals.zoom);
     drawFloor();
-    for(let k = config.population_size - 1; k >= 0 ; k--) {
-
-        if(globals.walkers[k] && !globals.walkers[k].is_eliminated) {
+    for (let k = config.population_size - 1; k >= 0 ; k--) {
+        if (globals.walkers[k] && !globals.walkers[k].is_eliminated) {
             drawWalker(globals.walkers[k]);
         }
     }
@@ -55,7 +46,7 @@ drawFloor = function() {
     globals.ctx.beginPath();
     let floor_fixture = globals.floor.GetFixtureList();
     globals.ctx.moveTo(floor_fixture.m_shape.m_vertices[0].x, floor_fixture.m_shape.m_vertices[0].y);
-    for(let k = 1; k < floor_fixture.m_shape.m_vertices.length; k++) {
+    for (let k = 1; k < floor_fixture.m_shape.m_vertices.length; k++) {
         globals.ctx.lineTo(floor_fixture.m_shape.m_vertices[k].x, floor_fixture.m_shape.m_vertices[k].y);
     }
     globals.ctx.stroke();
@@ -99,7 +90,7 @@ drawRect = function(body) {
     let shape = fixture.GetShape();
     let p0 = body.GetWorldPoint(shape.m_vertices[0]);
     globals.ctx.moveTo(p0.x, p0.y);
-    for(let k = 1; k < 4; k++) {
+    for (let k = 1; k < 4; k++) {
         let p = body.GetWorldPoint(shape.m_vertices[k]);
         globals.ctx.lineTo(p.x, p.y);
     }
@@ -128,8 +119,8 @@ getMinMaxDistance = function() {
     let min_y = 9999;
     let max_y = -1;
     let activeWalkerFound = false;
-    for(let k = 0; k < globals.walkers.length; k++) {
-        if(globals.walkers[k] && !globals.walkers[k].is_eliminated) {
+    for (let k = 0; k < globals.walkers.length; k++) {
+        if (globals.walkers[k] && !globals.walkers[k].is_eliminated) {
             activeWalkerFound = true;
             let dist = globals.walkers[k].torso.upper_torso.GetPosition();
             min_x = Math.min(min_x, dist.x);
@@ -171,7 +162,7 @@ drawGenePoolVisualization = function() {
 
     let genepool = globals.genepool;
 
-    if (!genepool || genepool.tiers.length === 0 || genepool.current_record_score <= 0) {
+    if (!genepool || genepool.tiers.length === 0 || genepool.record_score <= 0) {
         ctx.fillStyle = "#eee";
         ctx.fillRect(0,0, canvasWidth, canvasHeight);
         ctx.strokeStyle = "#ccc";
@@ -184,7 +175,7 @@ drawGenePoolVisualization = function() {
     }
 
     let barStartScore = genepool.start_score;
-    let barEndScore = genepool.current_record_score;
+    let barEndScore = genepool.record_score;
     let totalScoreRangeOnBar = barEndScore - barStartScore;
 
     if (totalScoreRangeOnBar <= 0) { // e.g. base_threshold is 1.0, or record score too low

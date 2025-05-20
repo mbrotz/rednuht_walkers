@@ -80,13 +80,23 @@ Walker.prototype.__constructor = function(world, genome) {
     this.pressure_line_x_position = this.initial_torso_center_x - config.pressure_line_starting_offset;
     this.pressure_line_speed = config.pressure_line_base_speed;
 
-    if(genome) {
-        this.genome = JSON.parse(JSON.stringify(genome));
+    if (genome) {
+        this.genome = genome;
     } else {
         this.genome = this.createGenome(this.joints, this.bodies);
     }
 
     this.name = this.makeName(this.genome);
+}
+
+Walker.prototype.destroyBody = function() {
+    for(let l = 0; l < this.bodies.length; l++) {
+        if(this.bodies[l]) {
+            globals.world.DestroyBody(this.bodies[l]);
+            this.bodies[l] = null;
+        }
+    }
+    this.bodies = [];
 }
 
 Walker.prototype.createTorso = function() {
