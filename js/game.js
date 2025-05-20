@@ -32,8 +32,8 @@ HeadFloorContactListener.prototype.constructor = HeadFloorContactListener;
 
 HeadFloorContactListener.prototype.BeginContact = function(contact) {
     if (config.head_floor_collision_kills) {
-        var userDataA = contact.GetFixtureA().GetUserData();
-        var userDataB = contact.GetFixtureB().GetUserData();
+        let userDataA = contact.GetFixtureA().GetUserData();
+        let userDataB = contact.GetFixtureB().GetUserData();
         if (userDataA && userDataB) {
             if (userDataA.isHead && userDataB.isFloor) {
                 userDataA.walker.is_eliminated = true;
@@ -75,7 +75,7 @@ simulationStep = function() {
         simulationSingleStep();
     } else {
 
-        for (var i = 0; i < 10; i++) {
+        for (let i = 0; i < 10; i++) {
             simulationSingleStep();
         }
     }
@@ -106,8 +106,8 @@ setSimulationFps = function(fps) {
 
 createPopulation = function(initial_genomes) {
     updateWalkerTotalCount(globals.walker_id_counter);
-    var walkers = [];
-    for(var k = 0; k < config.population_size; k++) {
+    let walkers = [];
+    for(let k = 0; k < config.population_size; k++) {
         globals.walker_id_counter++;
         let walker;
 
@@ -120,14 +120,14 @@ createPopulation = function(initial_genomes) {
 
 populationSimulationStep = function() {
 
-    for(var k = 0; k < config.population_size; k++) {
+    for(let k = 0; k < config.population_size; k++) {
         if(!globals.walkers[k].is_eliminated) {
             globals.walkers[k].simulationStep(config.motor_noise);
         } else {
             if(!globals.walkers[k].processed_after_elimination) {
-                var eliminatedWalker = globals.walkers[k];
-                var eliminatedWalkerScore = eliminatedWalker.fitness_score;
-                var eliminatedWalkerGenome = JSON.parse(JSON.stringify(eliminatedWalker.genome));
+                let eliminatedWalker = globals.walkers[k];
+                let eliminatedWalkerScore = eliminatedWalker.fitness_score;
+                let eliminatedWalkerGenome = JSON.parse(JSON.stringify(eliminatedWalker.genome));
 
                 if(eliminatedWalkerScore > globals.last_record) {
                     globals.last_record = eliminatedWalkerScore;
@@ -141,7 +141,7 @@ populationSimulationStep = function() {
 
                 globals.genepool.addGenome(eliminatedWalkerGenome, eliminatedWalkerScore);
 
-                for(var l = 0; l < eliminatedWalker.bodies.length; l++) {
+                for(let l = 0; l < eliminatedWalker.bodies.length; l++) {
                     if(eliminatedWalker.bodies[l]) {
                         globals.world.DestroyBody(eliminatedWalker.bodies[l]);
                         eliminatedWalker.bodies[l] = null;
@@ -157,12 +157,12 @@ populationSimulationStep = function() {
 }
 
 replaceWalkerAtIndex = function(index) {
-    var parent_genome = pickParentGenome();
+    let parent_genome = pickParentGenome();
 
-    var new_genome = cloneAndMutate(parent_genome);
+    let new_genome = cloneAndMutate(parent_genome);
 
     globals.walker_id_counter++;
-    var new_walker = new Walker(globals.world, new_genome);
+    let new_walker = new Walker(globals.world, new_genome);
     new_walker.id = globals.walker_id_counter;
 
     globals.walkers[index] = new_walker;
@@ -170,14 +170,14 @@ replaceWalkerAtIndex = function(index) {
 }
 
 pickParentGenome = function() {
-    var parent_genome = globals.genepool.selectParentGenome();
+    let parent_genome = globals.genepool.selectParentGenome();
 
     if (!parent_genome) {
 
-        var tempWalker = new Walker(globals.world);
+        let tempWalker = new Walker(globals.world);
         parent_genome = tempWalker.genome;
 
-        for(var l = 0; l < tempWalker.bodies.length; l++) {
+        for(let l = 0; l < tempWalker.bodies.length; l++) {
             if(tempWalker.bodies[l]) {
                 globals.world.DestroyBody(tempWalker.bodies[l]);
             }
@@ -190,19 +190,19 @@ pickParentGenome = function() {
 cloneAndMutate = function(parent_genome) {
     if (!parent_genome) {
         console.error("Attempted to clone a null or undefined genome. Creating a new random genome for mutation.");
-        var tempWalker = new Walker(globals.world);
-        var randomGenome = tempWalker.genome;
-        for(var l = 0; l < tempWalker.bodies.length; l++) {
+        let tempWalker = new Walker(globals.world);
+        let randomGenome = tempWalker.genome;
+        for(let l = 0; l < tempWalker.bodies.length; l++) {
             if(tempWalker.bodies[l]) globals.world.DestroyBody(tempWalker.bodies[l]);
         }
         parent_genome = randomGenome;
     }
 
-    var new_genome = JSON.parse(JSON.stringify(parent_genome));
-    var mutated = false;
+    let new_genome = JSON.parse(JSON.stringify(parent_genome));
+    let mutated = false;
 
-    for (var k = 0; k < new_genome.length; k++) {
-        for (var g_prop in new_genome[k]) {
+    for (let k = 0; k < new_genome.length; k++) {
+        for (let g_prop in new_genome[k]) {
             if (new_genome[k].hasOwnProperty(g_prop)) {
                 if (Math.random() < config.mutation_chance) {
                     //new_genome[k][g_prop] = new_genome[k][g_prop] * (1 + config.mutation_amount * (Math.random() * 2 - 1));

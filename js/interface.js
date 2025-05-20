@@ -27,9 +27,9 @@ printNames = function(walkers) {
         globals.last_population_update = ms;
         let name_list = document.getElementById("name_list");
         name_list.innerHTML = "";
-        for(var k = 0; k < walkers.length; k++) {
-            var tr = document.createElement("TR");
-            var td = document.createElement("TD");
+        for(let k = 0; k < walkers.length; k++) {
+            let tr = document.createElement("TR");
+            let td = document.createElement("TD");
             td.className = "name";
             td.appendChild(document.createTextNode(walkers[k].name));
             tr.appendChild(td);
@@ -45,20 +45,20 @@ printNames = function(walkers) {
 }
 
 printChampion = function(walker) {
-    var champ_list = document.getElementById("champ_list");
-    var tr = document.createElement("TR");
+    let champ_list = document.getElementById("champ_list");
+    let tr = document.createElement("TR");
 
-    var tdId = document.createElement("TD");
+    let tdId = document.createElement("TD");
     tdId.className = "generation";
     tdId.appendChild(document.createTextNode(walker.id));
     tr.appendChild(tdId);
 
-    var tdName = document.createElement("TD");
+    let tdName = document.createElement("TD");
     tdName.className = "name";
     tdName.appendChild(document.createTextNode(walker.name));
     tr.appendChild(tdName);
 
-    var tdScore = document.createElement("TD");
+    let tdScore = document.createElement("TD");
     tdScore.className = "score";
 
     tdScore.appendChild(document.createTextNode(walker.fitness_score.toFixed(2)));
@@ -84,20 +84,20 @@ updateWalkerTotalCount = function(number) {
 }
 
 setQuote = function() {
-    var quoteEl = document.getElementById("page_quote");
+    let quoteEl = document.getElementById("page_quote");
     if (quoteEl) {
         quoteEl.innerHTML = '"'+quotes[Math.floor(Math.random() * quotes.length)]+'"';
     }
 }
 
 function setupSelectControl(elementId, configProperty, isFloat) {
-    var selectElement = document.getElementById(elementId);
+    let selectElement = document.getElementById(elementId);
     if (selectElement) {
-        var lowerCaseConfigProperty = configProperty.toLowerCase();
+        let lowerCaseConfigProperty = configProperty.toLowerCase();
 
-        for (var k = 0; k < selectElement.options.length; k++) {
-            var optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
-            var configValue = isFloat ? parseFloat(config[lowerCaseConfigProperty]) : parseInt(config[lowerCaseConfigProperty]);
+        for (let k = 0; k < selectElement.options.length; k++) {
+            let optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
+            let configValue = isFloat ? parseFloat(config[lowerCaseConfigProperty]) : parseInt(config[lowerCaseConfigProperty]);
 
             if (config[lowerCaseConfigProperty] === undefined && config[configProperty] !== undefined) {
                 configValue = isFloat ? parseFloat(config[configProperty]) : parseInt(config[configProperty]);
@@ -109,7 +109,7 @@ function setupSelectControl(elementId, configProperty, isFloat) {
             }
         }
         selectElement.onchange = function() {
-            var newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
+            let newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
             config[lowerCaseConfigProperty] = newValue;
             if (config[configProperty] !== undefined && lowerCaseConfigProperty !== configProperty) {
                 config[configProperty] = newValue;
@@ -124,9 +124,9 @@ interfaceSetup = function() {
     setupSelectControl("mutation_amount", "mutation_amount", true);
     setupSelectControl("motor_noise", "motor_noise", true);
 
-    var fps_sel = document.getElementById("draw_fps");
+    let fps_sel = document.getElementById("draw_fps");
     if (fps_sel) {
-        for(var k = 0; k < fps_sel.options.length; k++) {
+        for(let k = 0; k < fps_sel.options.length; k++) {
             if(fps_sel.options[k].value == config.draw_fps) {
                 fps_sel.options[k].selected = true;
                 break;
@@ -137,9 +137,9 @@ interfaceSetup = function() {
         }
     }
 
-    var simulation_fps_sel = document.getElementById("simulation_fps");
+    let simulation_fps_sel = document.getElementById("simulation_fps");
     if (simulation_fps_sel) {
-        for(var k = 0; k < simulation_fps_sel.options.length; k++) {
+        for(let k = 0; k < simulation_fps_sel.options.length; k++) {
             if(simulation_fps_sel.options[k].value == config.simulation_fps) {
                 simulation_fps_sel.options[k].selected = true;
                 break;

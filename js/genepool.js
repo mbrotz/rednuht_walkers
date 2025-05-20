@@ -6,7 +6,7 @@ function gaussianRandom(mean = 0, stdev = 1) {
     return z * stdev + mean;
 }
 
-var GenePool = function() {
+let GenePool = function() {
     this.__constructor.apply(this, arguments);
 }
 
@@ -22,8 +22,8 @@ GenePool.prototype.__constructor = function(config) {
     this.current_record_score = 0.0;
     this.tiers = [];
 
-    var current_range = this.range;
-    for (var i = 0; i < this.num_tiers; i++) {
+    let current_range = this.range;
+    for (let i = 0; i < this.num_tiers; i++) {
         this.tiers.push({
             index: i,
             is_lowest: i == 0,
@@ -39,15 +39,15 @@ GenePool.prototype.__constructor = function(config) {
         });
         current_range *= this.range_decay;
     }
-    var range_sum = 0.0;
-    for (var i = 0; i < this.num_tiers; i++) {
+    let range_sum = 0.0;
+    for (let i = 0; i < this.num_tiers; i++) {
         range_sum += this.tiers[i].range;
     }
-    for (var i = 0; i < this.num_tiers; i++) {
+    for (let i = 0; i < this.num_tiers; i++) {
         this.tiers[i].range /= range_sum;
     }
-    var current_threshold = this.threshold;
-    for (var i = 0; i < this.num_tiers; i++) {
+    let current_threshold = this.threshold;
+    for (let i = 0; i < this.num_tiers; i++) {
         let tier = this.tiers[i];
         tier.low = current_threshold;
         current_threshold += this.range * tier.range;
@@ -73,9 +73,9 @@ GenePool.prototype._find_lowest_performing_entry = function(tier_index) {
     if (tier.entries.length == 0) {
         return -1;
     }
-    var entry = null;
-    var index = -1;
-    for (var i = 0; i < tier.entries.length; i++) {
+    let entry = null;
+    let index = -1;
+    for (let i = 0; i < tier.entries.length; i++) {
         let e = tier.entries[i];
         if (entry === null || e.score < entry.score) {
             entry = e;
@@ -116,7 +116,7 @@ GenePool.prototype._adjust_entry = function(tier_index, entry) {
     if (tier_index < 0) {
         return -1;
     }
-    for (var i = tier_index; i >= 0; i--) {
+    for (let i = tier_index; i >= 0; i--) {
         let tier = this.tiers[i];
         if (entry.score >= tier.low_score && entry.score < tier.high_score) {
             if (tier.entries.length < this.tier_capacity) {
@@ -140,9 +140,9 @@ GenePool.prototype._adjust_entry = function(tier_index, entry) {
 }
 
 GenePool.prototype._adjust_entries = function() {
-    for (var i = 0; i < this.num_tiers; i++) {
+    for (let i = 0; i < this.num_tiers; i++) {
         let tier = this.tiers[i];
-        for (var j = tier.entries.length-1; j >= 0; j--) {
+        for (let j = tier.entries.length-1; j >= 0; j--) {
             let removed_entry = tier.entries[j];
             if (removed_entry.score < tier.low_score) {
                 tier.entries.splice(j, 1);
@@ -159,7 +159,7 @@ GenePool.prototype._adjust_tiers = function(score) {
     }
     this.start_score = this.threshold * score;
     this.current_record_score = score;
-    for (var i = 0; i < this.num_tiers; i++) {
+    for (let i = 0; i < this.num_tiers; i++) {
         let tier = this.tiers[i];
         tier.low_score = tier.low * score;
         tier.high_score = tier.high * score;
@@ -168,8 +168,8 @@ GenePool.prototype._adjust_tiers = function(score) {
 };
 
 GenePool.prototype._place_genome = function(genome, score) {
-    var next_tier = null;
-    for (var i = this.num_tiers - 1; i >= 0; i--) {
+    let next_tier = null;
+    for (let i = this.num_tiers - 1; i >= 0; i--) {
         let tier = this.tiers[i];
         if (score >= tier.low_score) {
             if (tier.entries.length >= this.tier_capacity) {
@@ -200,7 +200,7 @@ GenePool.prototype.addGenome = function(genome, score) {
 
 GenePool.prototype._selectEligibleTiers = function() {
     let result = [];
-    for (var i = 0; i < this.num_tiers; i++) {
+    for (let i = 0; i < this.num_tiers; i++) {
         if (this.tiers[i].entries.length > 0) {
             result.push({index: i, tier: this.tiers[i]});
         }
@@ -209,13 +209,13 @@ GenePool.prototype._selectEligibleTiers = function() {
         return result;
     }
     let rank_increment = 1.0 / (result.length - 1) * Math.max(0.0, this.selection_pressure - 1.0);
-    var rank_sum = 0.0;
-    for (var i = 0; i < result.length; i++) {
+    let rank_sum = 0.0;
+    for (let i = 0; i < result.length; i++) {
         let rank = 1.0 + rank_increment * i;
         result[i].rank = rank;
         rank_sum += rank;
     }
-    for (var i = 0; i < result.length; i++) {
+    for (let i = 0; i < result.length; i++) {
         result[i].weight = result[i].rank / rank_sum;
     }
     return result;
@@ -251,8 +251,8 @@ GenePool.prototype._selectEligibleTierWeighted = function(eligible_tiers) {
         return eligible_tiers[0].tier;
     }
     let random_value = Math.random();
-    var sum = 0.0;
-    for (var i = 0; i < eligible_tiers.length; i++) {
+    let sum = 0.0;
+    for (let i = 0; i < eligible_tiers.length; i++) {
         let weight = eligible_tiers[i].weight;
         if (random_value >= sum && random_value < sum + weight) {
             return eligible_tiers[i].tier;

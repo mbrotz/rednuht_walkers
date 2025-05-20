@@ -28,7 +28,7 @@ setFps = function(fps) {
 }
 
 drawFrame = function() {
-    var minmax = getMinMaxDistance();
+    let minmax = getMinMaxDistance();
     globals.target_zoom = Math.min(config.max_zoom_factor, getZoom(minmax.min_x, minmax.max_x + 4, minmax.min_y + 2, minmax.max_y + 2.5));
     globals.zoom += 0.1*(globals.target_zoom - globals.zoom);
     globals.translate_x += 0.1*(1.5-minmax.min_x - globals.translate_x);
@@ -39,7 +39,7 @@ drawFrame = function() {
     globals.ctx.translate(globals.translate_x*globals.zoom, globals.translate_y);
     globals.ctx.scale(globals.zoom, -globals.zoom);
     drawFloor();
-    for(var k = config.population_size - 1; k >= 0 ; k--) {
+    for(let k = config.population_size - 1; k >= 0 ; k--) {
 
         if(globals.walkers[k] && !globals.walkers[k].is_eliminated) {
             drawWalker(globals.walkers[k]);
@@ -53,9 +53,9 @@ drawFloor = function() {
     globals.ctx.strokeStyle = "#444";
     globals.ctx.lineWidth = 1/globals.zoom;
     globals.ctx.beginPath();
-    var floor_fixture = globals.floor.GetFixtureList();
+    let floor_fixture = globals.floor.GetFixtureList();
     globals.ctx.moveTo(floor_fixture.m_shape.m_vertices[0].x, floor_fixture.m_shape.m_vertices[0].y);
-    for(var k = 1; k < floor_fixture.m_shape.m_vertices.length; k++) {
+    for(let k = 1; k < floor_fixture.m_shape.m_vertices.length; k++) {
         globals.ctx.lineTo(floor_fixture.m_shape.m_vertices[k].x, floor_fixture.m_shape.m_vertices[k].y);
     }
     globals.ctx.stroke();
@@ -63,12 +63,12 @@ drawFloor = function() {
 
 drawWalker = function(walker) {
 
-    var current_torso_x = walker.torso.upper_torso.GetPosition().x;
-    var pressure_line_distance = current_torso_x - walker.pressure_line_x_position;
-    var normalized_distance = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
+    let current_torso_x = walker.torso.upper_torso.GetPosition().x;
+    let pressure_line_distance = current_torso_x - walker.pressure_line_x_position;
+    let normalized_distance = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
 
-    var brightness_factor = 40 + 50 * normalized_distance;
-    var saturation_factor = 30 + 40 * normalized_distance;
+    let brightness_factor = 40 + 50 * normalized_distance;
+    let saturation_factor = 30 + 40 * normalized_distance;
 
     globals.ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
     globals.ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";
@@ -95,12 +95,12 @@ drawWalker = function(walker) {
 
 drawRect = function(body) {
     globals.ctx.beginPath();
-    var fixture = body.GetFixtureList();
-    var shape = fixture.GetShape();
-    var p0 = body.GetWorldPoint(shape.m_vertices[0]);
+    let fixture = body.GetFixtureList();
+    let shape = fixture.GetShape();
+    let p0 = body.GetWorldPoint(shape.m_vertices[0]);
     globals.ctx.moveTo(p0.x, p0.y);
-    for(var k = 1; k < 4; k++) {
-        var p = body.GetWorldPoint(shape.m_vertices[k]);
+    for(let k = 1; k < 4; k++) {
+        let p = body.GetWorldPoint(shape.m_vertices[k]);
         globals.ctx.lineTo(p.x, p.y);
     }
     globals.ctx.lineTo(p0.x, p0.y);
@@ -123,20 +123,20 @@ drawTest = function() {
 }
 
 getMinMaxDistance = function() {
-    var min_x = 9999;
-    var max_x = -1;
-    var min_y = 9999;
-    var max_y = -1;
-    var activeWalkerFound = false;
-    for(var k = 0; k < globals.walkers.length; k++) {
+    let min_x = 9999;
+    let max_x = -1;
+    let min_y = 9999;
+    let max_y = -1;
+    let activeWalkerFound = false;
+    for(let k = 0; k < globals.walkers.length; k++) {
         if(globals.walkers[k] && !globals.walkers[k].is_eliminated) {
             activeWalkerFound = true;
-            var dist = globals.walkers[k].torso.upper_torso.GetPosition();
+            let dist = globals.walkers[k].torso.upper_torso.GetPosition();
             min_x = Math.min(min_x, dist.x);
             max_x = Math.max(max_x, dist.x);
 
-            var current_head_y_for_zoom = globals.walkers[k].head.head.GetPosition().y;
-            var current_low_foot_y_for_zoom = Math.min(globals.walkers[k].left_leg.foot.GetPosition().y, globals.walkers[k].right_leg.foot.GetPosition().y);
+            let current_head_y_for_zoom = globals.walkers[k].head.head.GetPosition().y;
+            let current_low_foot_y_for_zoom = Math.min(globals.walkers[k].left_leg.foot.GetPosition().y, globals.walkers[k].right_leg.foot.GetPosition().y);
 
             min_y = Math.min(min_y, current_low_foot_y_for_zoom, current_head_y_for_zoom);
             max_y = Math.max(max_y, dist.y, current_head_y_for_zoom);
@@ -149,11 +149,11 @@ getMinMaxDistance = function() {
 }
 
 getZoom = function(min_x, max_x, min_y, max_y) {
-    var delta_x = Math.abs(max_x - min_x);
-    var delta_y = Math.abs(max_y - min_y);
+    let delta_x = Math.abs(max_x - min_x);
+    let delta_y = Math.abs(max_y - min_y);
     if (delta_x === 0) delta_x = 1;
     if (delta_y === 0) delta_y = 1;
-    var zoom = Math.min(globals.main_screen.width/delta_x,globals.main_screen.height/delta_y);
+    let zoom = Math.min(globals.main_screen.width/delta_x,globals.main_screen.height/delta_y);
     return zoom;
 }
 
@@ -201,7 +201,7 @@ drawGenePoolVisualization = function() {
 
     let tierColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C"];
 
-    for (var i = 0; i < genepool.tiers.length; i++) {
+    for (let i = 0; i < genepool.tiers.length; i++) {
         let tier = genepool.tiers[i];
 
         let tierActualStartScore = tier.low_score;
@@ -231,7 +231,7 @@ drawGenePoolVisualization = function() {
             let tierScoreRange = tier.high_score - tier.low_score;
             if (tierScoreRange > 0) {
                 let avgScorePosInTierRel = (tier.mean_score - tier.low_score) / tierScoreRange;
-                var avgLineX_px = tierStartX_px + (avgScorePosInTierRel * tierWidth_px);
+                let avgLineX_px = tierStartX_px + (avgScorePosInTierRel * tierWidth_px);
                 // Make sure avg line is within the drawn segment
                 avgLineX_px = Math.max(tierStartX_px, Math.min(avgLineX_px, tierEndX_px -1));
                 let avgLineHeight_n = tier.entries.length / genepool.tier_capacity;

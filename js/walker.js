@@ -1,5 +1,5 @@
 ﻿
-var Walker = function() {
+let Walker = function() {
     this.__constructor.apply(this, arguments);
 }
 
@@ -91,19 +91,19 @@ Walker.prototype.__constructor = function(world, genome) {
 
 Walker.prototype.createTorso = function() {
     this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height/2);
-    var upper_torso = this.world.CreateBody(this.bd);
+    let upper_torso = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.torso_def.upper_width/2, this.torso_def.upper_height/2);
     upper_torso.CreateFixture(this.fd);
 
     this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height/2);
-    var lower_torso = this.world.CreateBody(this.bd);
+    let lower_torso = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.torso_def.lower_width/2, this.torso_def.lower_height/2);
     lower_torso.CreateFixture(this.fd);
 
-    var jd = new b2.RevoluteJointDef();
-    var position = upper_torso.GetPosition().Clone();
+    let jd = new b2.RevoluteJointDef();
+    let position = upper_torso.GetPosition().Clone();
     position.y -= this.torso_def.upper_height/2;
     position.x -= this.torso_def.lower_width/3;
     jd.Initialize(upper_torso, lower_torso, position);
@@ -120,25 +120,25 @@ Walker.prototype.createTorso = function() {
 
 Walker.prototype.createLeg = function() {
     this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length/2);
-    var upper_leg = this.world.CreateBody(this.bd);
+    let upper_leg = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.leg_def.femur_width/2, this.leg_def.femur_length/2);
     upper_leg.CreateFixture(this.fd);
 
     this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length/2);
-    var lower_leg = this.world.CreateBody(this.bd);
+    let lower_leg = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.leg_def.tibia_width/2, this.leg_def.tibia_length/2);
     lower_leg.CreateFixture(this.fd);
 
     this.bd.position.Set(0.5, this.leg_def.foot_height/2);
-    var foot = this.world.CreateBody(this.bd);
+    let foot = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.leg_def.foot_length/2, this.leg_def.foot_height/2);
     foot.CreateFixture(this.fd);
 
-    var jd = new b2.RevoluteJointDef();
-    var position = upper_leg.GetPosition().Clone();
+    let jd = new b2.RevoluteJointDef();
+    let position = upper_leg.GetPosition().Clone();
     position.y -= this.leg_def.femur_length/2;
     position.x += this.leg_def.femur_width/4;
     jd.Initialize(upper_leg, lower_leg, position);
@@ -150,7 +150,7 @@ Walker.prototype.createLeg = function() {
     jd.enableMotor = true;
     this.joints.push(this.world.CreateJoint(jd));
 
-    var position = lower_leg.GetPosition().Clone();
+    position = lower_leg.GetPosition().Clone();
     position.y -= this.leg_def.tibia_length/2;
     jd.Initialize(lower_leg, foot, position);
     jd.lowerAngle = -Math.PI/5;
@@ -166,19 +166,19 @@ Walker.prototype.createLeg = function() {
 
 Walker.prototype.createArm = function() {
     this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height - this.arm_def.arm_length/2);
-    var upper_arm = this.world.CreateBody(this.bd);
+    let upper_arm = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.arm_def.arm_width/2, this.arm_def.arm_length/2);
     upper_arm.CreateFixture(this.fd);
 
     this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height - this.arm_def.arm_length - this.arm_def.forearm_length/2);
-    var lower_arm = this.world.CreateBody(this.bd);
+    let lower_arm = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.arm_def.forearm_width/2, this.arm_def.forearm_length/2);
     lower_arm.CreateFixture(this.fd);
 
-    var jd = new b2.RevoluteJointDef();
-    var position = upper_arm.GetPosition().Clone();
+    let jd = new b2.RevoluteJointDef();
+    let position = upper_arm.GetPosition().Clone();
     position.y -= this.arm_def.arm_length/2;
     jd.Initialize(upper_arm, lower_arm, position);
     jd.lowerAngle = 0;
@@ -194,20 +194,20 @@ Walker.prototype.createArm = function() {
 
 Walker.prototype.createHead = function() {
     this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height + this.head_def.neck_height/2);
-    var neck = this.world.CreateBody(this.bd);
+    let neck = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.head_def.neck_width/2, this.head_def.neck_height/2);
     neck.CreateFixture(this.fd);
 
     this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height + this.head_def.neck_height + this.head_def.head_height/2);
-    var headBody = this.world.CreateBody(this.bd);
+    let headBody = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.head_def.head_width/2, this.head_def.head_height/2);
-    var headFixture = headBody.CreateFixture(this.fd);
+    let headFixture = headBody.CreateFixture(this.fd);
     headFixture.SetUserData({ isHead: true, walker: this });
 
-    var jd = new b2.RevoluteJointDef();
-    var position = neck.GetPosition().Clone();
+    let jd = new b2.RevoluteJointDef();
+    let position = neck.GetPosition().Clone();
     position.y += this.head_def.neck_height/2;
     jd.Initialize(headBody, neck, position);
     jd.lowerAngle = -0.1;
@@ -222,7 +222,7 @@ Walker.prototype.createHead = function() {
 }
 
 Walker.prototype.connectParts = function() {
-    var jd_weld = new b2.WeldJointDef();
+    let jd_weld = new b2.WeldJointDef();
     jd_weld.bodyA = this.head.neck;
     jd_weld.bodyB = this.torso.upper_torso;
     jd_weld.localAnchorA = new b2.Vec2(0, -this.head_def.neck_height/2);
@@ -230,9 +230,9 @@ Walker.prototype.connectParts = function() {
     jd_weld.referenceAngle = 0;
     this.world.CreateJoint(jd_weld);
 
-    var jd = new b2.RevoluteJointDef();
+    let jd = new b2.RevoluteJointDef();
 
-    var arm_connect_pos = this.torso.upper_torso.GetPosition().Clone();
+    let arm_connect_pos = this.torso.upper_torso.GetPosition().Clone();
     arm_connect_pos.y += this.torso_def.upper_height/2;
 
     jd.Initialize(this.torso.upper_torso, this.right_arm.upper_arm, arm_connect_pos);
@@ -244,7 +244,7 @@ Walker.prototype.connectParts = function() {
     jd.enableMotor = true;
     this.joints.push(this.world.CreateJoint(jd));
 
-    var jd2 = new b2.RevoluteJointDef();
+    let jd2 = new b2.RevoluteJointDef();
     jd2.Initialize(this.torso.upper_torso, this.left_arm.upper_arm, arm_connect_pos);
     jd2.lowerAngle = -Math.PI/2;
     jd2.upperAngle = Math.PI/1.5;
@@ -254,10 +254,10 @@ Walker.prototype.connectParts = function() {
     jd2.enableMotor = true;
     this.joints.push(this.world.CreateJoint(jd2));
 
-    var leg_connect_pos = this.torso.lower_torso.GetPosition().Clone();
+    let leg_connect_pos = this.torso.lower_torso.GetPosition().Clone();
     leg_connect_pos.y -= this.torso_def.lower_height/2;
 
-    var jd3 = new b2.RevoluteJointDef();
+    let jd3 = new b2.RevoluteJointDef();
     jd3.Initialize(this.torso.lower_torso, this.right_leg.upper_leg, leg_connect_pos);
     jd3.lowerAngle = -Math.PI/2.5;
     jd3.upperAngle = Math.PI/3;
@@ -267,7 +267,7 @@ Walker.prototype.connectParts = function() {
     jd3.enableMotor = true;
     this.joints.push(this.world.CreateJoint(jd3));
 
-    var jd4 = new b2.RevoluteJointDef();
+    let jd4 = new b2.RevoluteJointDef();
     jd4.Initialize(this.torso.lower_torso, this.left_leg.upper_leg, leg_connect_pos);
     jd4.lowerAngle = -Math.PI/2.5;
     jd4.upperAngle = Math.PI/3;
@@ -298,10 +298,10 @@ Walker.prototype.getBodies = function() {
 }
 
 Walker.prototype.createGenome = function(joints, bodies) {
-    var genome = [];
-    var num_motorized_joints = this.joints.length;
+    let genome = [];
+    let num_motorized_joints = this.joints.length;
 
-    for(var k = 0; k < num_motorized_joints; k++) {
+    for(let k = 0; k < num_motorized_joints; k++) {
         let max_torque = this.joints[k].GetMaxMotorTorque();
         genome.push({
           //cos_factor: Math.random() * 6 - 3,
@@ -321,11 +321,11 @@ Walker.prototype.simulationStep = function(motor_noise) {
         return;
     }
 
-    for(var k = 0; k < this.joints.length; k++) {
+    for(let k = 0; k < this.joints.length; k++) {
         if (this.genome[k]) {
-            //var amp = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].cos_factor;
-            //var phase = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_shift;
-            //var freq = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_factor;
+            //let amp = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].cos_factor;
+            //let phase = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_shift;
+            //let freq = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_factor;
             //this.joints[k].SetMotorSpeed(amp * Math.cos(phase + freq * this.local_step_counter));
             let amp = this.genome[k].cos_factor;
             let phase = this.genome[k].time_shift;
@@ -336,14 +336,14 @@ Walker.prototype.simulationStep = function(motor_noise) {
         }
     }
 
-    var current_torso_x = this.torso.upper_torso.GetPosition().x;
-    var movement_progress = Math.max(0.0, current_torso_x - this.max_torso_center_x);
+    let current_torso_x = this.torso.upper_torso.GetPosition().x;
+    let movement_progress = Math.max(0.0, current_torso_x - this.max_torso_center_x);
 
     if (movement_progress > 0.0) {
-        var current_head_y = this.head.head.GetPosition().y;
-        var normalized_head_y = Math.min(1.0, Math.max(0.0, current_head_y / config.max_reasonable_head_height));
+        let current_head_y = this.head.head.GetPosition().y;
+        let normalized_head_y = Math.min(1.0, Math.max(0.0, current_head_y / config.max_reasonable_head_height));
 
-        var effective_posture_modifier = (1.0 + normalized_head_y) * (1.0 + normalized_head_y);
+        let effective_posture_modifier = (1.0 + normalized_head_y) * (1.0 + normalized_head_y);
 
         this.fitness_score += movement_progress * effective_posture_modifier;
         this.steps_without_improvement = 0;
@@ -371,20 +371,20 @@ Walker.prototype.simulationStep = function(motor_noise) {
 }
 
 Walker.prototype.makeName = function(genome) {
-    var vowels = ['a','e','i','o','u','y'];
-    var consonants = ['b','c','d','f','g','h','j','k','l','m','n','p','r','s','t','v','w','x','z'];
+    let vowels = ['a','e','i','o','u','y'];
+    let consonants = ['b','c','d','f','g','h','j','k','l','m','n','p','r','s','t','v','w','x','z'];
 
-    var generateNamePart = function(genome_source, length, capitalizeFirst, gene_start_offset) {
-        var name_part = '';
-        var use_vowel = Math.random() < 0.5;
+    let generateNamePart = function(genome_source, length, capitalizeFirst, gene_start_offset) {
+        let name_part = '';
+        let use_vowel = Math.random() < 0.5;
 
-        for (var i = 0; i < length; i++) {
-            var sum = 0;
-            var gene_index = (gene_start_offset + i) % genome_source.length;
+        for (let i = 0; i < length; i++) {
+            let sum = 0;
+            let gene_index = (gene_start_offset + i) % genome_source.length;
 
-            var current_gene = genome_source[gene_index];
+            let current_gene = genome_source[gene_index];
             if (current_gene) {
-                for (var prop in current_gene) {
+                for (let prop in current_gene) {
                     if (current_gene.hasOwnProperty(prop) && typeof current_gene[prop] === 'number') {
                         sum += (current_gene[prop] * (100 + (gene_start_offset % 13)));
                     }
@@ -392,7 +392,7 @@ Walker.prototype.makeName = function(genome) {
             }
             sum = Math.abs(Math.floor(sum));
 
-            var char_to_add;
+            let char_to_add;
             if (use_vowel) {
                 char_to_add = vowels[sum % vowels.length];
             } else {
@@ -413,23 +413,23 @@ Walker.prototype.makeName = function(genome) {
         return "Genomi Anonymi";
     }
 
-    var min_name_len = 3;
-    var max_genus_len = 6;
-    var max_species_len = 8;
+    let min_name_len = 3;
+    let max_genus_len = 6;
+    let max_species_len = 8;
 
-    var genus_length = Math.max(min_name_len, Math.min(max_genus_len, Math.floor(genome.length / 2.5) + 1));
-    var species_length = Math.max(min_name_len, Math.min(max_species_len, Math.floor(genome.length / 2) + 2));
+    let genus_length = Math.max(min_name_len, Math.min(max_genus_len, Math.floor(genome.length / 2.5) + 1));
+    let species_length = Math.max(min_name_len, Math.min(max_species_len, Math.floor(genome.length / 2) + 2));
 
-    var genus_name = generateNamePart(genome, genus_length, true, 0);
+    let genus_name = generateNamePart(genome, genus_length, true, 0);
 
-    var species_offset = Math.floor(genome.length / 3);
+    let species_offset = Math.floor(genome.length / 3);
     if (genome.length <= 2 && genome.length > 0) {
         species_offset = 1;
     } else if (genome.length === 0) {
         species_offset = 0;
     }
 
-    var species_name = generateNamePart(genome, species_length, true, species_offset);
+    let species_name = generateNamePart(genome, species_length, true, species_offset);
 
     return genus_name + " " + species_name;
 };
