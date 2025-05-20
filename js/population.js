@@ -29,7 +29,7 @@ Population.prototype.simulationStep = function() {
     for (let k = 0; k < this.walkers.length; k++) {
         let walker = this.walkers[k];
         if (walker.is_eliminated) {
-            globals.genepool.addGenome(walker.genome, walker.score);
+            globals.genepool.addWalker(walker);
             globals.history.addWalker(walker);
             walker.destroyBody();
             walker = globals.genepool.createMutatedWalker()

@@ -15,6 +15,7 @@ GenePool.prototype.__constructor = function(config) {
 
     this.start_score = 0.0;
     this.record_score = 0.0;
+    this.record_holder = null;
     this.tiers = [];
 
     let current_range = this.range;
@@ -97,6 +98,40 @@ GenePool.prototype._remove_lowest_performing_entry = function(tier_index, min_sc
     return null;
 }
 
+GenePool.prototype._find_lowest_head_entry = function(tier_index) {
+    let tier = this.tiers[tier_index];
+    if (tier.entries.length == 0) {
+        return -1;
+    }
+    let entry = null;
+    let index = -1;
+    for (let i = 0; i < tier.entries.length; i++) {
+        let e = tier.entries[i];
+        if (entry === null || e.mean_head_height < entry.mean_head_height) {
+            entry = e;
+            index = i;
+        }
+    }
+    if (entry === null) {
+        return -1;
+    }
+    return index;
+}
+
+GenePool.prototype._remove_lowest_head_entry = function(tier_index, min_head_height = undefined) {
+    let index = this._find_lowest_head_entry(tier_index);
+    if (index >= 0) {
+        let tier = this.tiers[tier_index];
+        let entry = tier.entries[index];
+        if (min_head_height === undefined || entry.mean_head_height <= min_head_height) {
+            tier.entries.splice(index, 1);
+            this._update_mean(tier_index, -entry.score);
+            return entry;
+        }
+    }
+    return null;
+}
+
 GenePool.prototype._remove_oldest_entry = function(tier_index) {
     let tier = this.tiers[tier_index];
     if (tier.entries.length > 0) {
@@ -150,7 +185,7 @@ GenePool.prototype._adjust_entries = function() {
 
 GenePool.prototype._adjust_tiers = function(score) {
     if (score <= 0.0 || this.record_score >= score) {
-        return;
+        return false;
     }
     this.start_score = this.threshold * score;
     this.record_score = score;
@@ -160,27 +195,34 @@ GenePool.prototype._adjust_tiers = function(score) {
         tier.high_score = tier.high * score;
     }
     this._adjust_entries();
+    return true;
 };
 
-GenePool.prototype._place_genome = function(genome, score) {
+GenePool.prototype._entryFromWalker = function(walker) {
+    return {
+        genome: JSON.stringify(walker.genome),
+        score: walker.score,
+        mean_head_height: walker.mean_head_height,
+    };
+}
+
+GenePool.prototype._place_genome = function(walker) {
     let next_tier = null;
     for (let i = this.num_tiers - 1; i >= 0; i--) {
         let tier = this.tiers[i];
-        if (score >= tier.low_score) {
+        if (walker.score >= tier.low_score) {
             if (tier.entries.length >= this.tier_capacity) {
-                if (tier.is_highest || (next_tier && next_tier.entries.length < this.tier_capacity)) {
-                    let removed_entry = this._remove_lowest_performing_entry(i, score);
-                    if (removed_entry === null)
+                let removed_entry = this._remove_lowest_head_entry(i, walker.mean_head_height);
+                //if (removed_entry === null)
+                //    removed_entry = this._remove_lowest_performing_entry(i, walker.score);
+                if (removed_entry === null)
+                    //if (Math.random() < 0.25)
+                    //    this._remove_oldest_entry(i);
+                    //else
                         return -1;
-                } else {
-                    this._remove_oldest_entry(i);
-                }
             }
-            tier.entries.push({
-                genome: JSON.stringify(genome),
-                score: score,
-            });
-            this._update_mean(i, score);
+            tier.entries.push(this._entryFromWalker(walker));
+            this._update_mean(i, walker.score);
             return i;
         }
         next_tier = tier;
@@ -270,18 +312,19 @@ GenePool.prototype._mutateGenome = function(genome) {
     return genome;
 }
 
-GenePool.prototype.addGenome = function(genome, score) {
+GenePool.prototype.addWalker = function(walker) {
     if (this.num_tiers === 0 || this.tier_capacity === 0) {
         return -1;
     }
-    this._adjust_tiers(score);
-    return this._place_genome(genome, score);
+    if (this._adjust_tiers(walker.score) == true) {
+        this.record_holder = this._entryFromWalker(walker);
+    }
+    return this._place_genome(walker);
 };
 
 GenePool.prototype.selectParentGenome = function() {
-    if (this.num_tiers === 0 || this.tier_capacity === 0) {
-        return null;
-    }
+    if (this.record_holder && Math.random() < 0.05)
+        return JSON.parse(this.record_holder.genome);
     let eligible_tiers = this._selectEligibleTiers();
     let selected_tier = this._selectEligibleTierWeighted(eligible_tiers);
     let selected_parent = this._selectParentEntryUniform(selected_tier);

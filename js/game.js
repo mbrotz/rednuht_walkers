@@ -16,7 +16,7 @@
     genepool_threshold: 0.25,
     genepool_range_decay: 0.9,
     genepool_tiers: 40,
-    genepool_tier_capacity: 10,
+    genepool_tier_capacity: 40,
     genepool_tier_selection_pressure: 10.0,
     genepool_gene_mutation_chance: 1.0,
     genepool_gene_mutation_strength: 0.05,
