@@ -6,19 +6,19 @@ let Walker = function() {
 Walker.prototype.__constructor = function(world, genome) {
 
     this.world = globals.world;
-
     this.density = 106.2;
 
-    this.local_step_counter = 0;
-
-    this.max_distance = -5;
     this.id = 0;
-
     this.is_eliminated = false;
-    this.processed_after_elimination = false;
-    this.initial_torso_center_x = 0;
-    this.max_torso_center_x = 0;
+    this.initial_head_position = 0;
+    this.initial_torso_position = 0;
+    this.max_torso_position = 0;
+    this.mean_head_height = 0;
+    this.mean_head_height_sum = 0;
+    this.mean_forward_velocity = 0;
+    this.mean_forward_velocity_sum = 0;
     this.steps_without_improvement = 0;
+    this.local_step_counter = 0;
     this.score = 0.0;
 
     this.bd = new b2.BodyDef();
@@ -76,8 +76,9 @@ Walker.prototype.__constructor = function(world, genome) {
 
     this.bodies = this.getBodies();
 
-    this.initial_torso_center_x = this.torso.upper_torso.GetPosition().x;
-    this.pressure_line_x_position = this.initial_torso_center_x - config.pressure_line_starting_offset;
+    this.initial_head_position = this.getHeadPosition();
+    this.initial_torso_position = this.getTorsoPosition();
+    this.pressure_line_position = this.initial_torso_position - config.pressure_line_starting_offset;
     this.pressure_line_speed = config.pressure_line_base_speed;
 
     if (genome) {
@@ -87,6 +88,30 @@ Walker.prototype.__constructor = function(world, genome) {
     }
 
     this.name = this.makeName(this.genome);
+}
+
+Walker.prototype.getHeadPosition = function() {
+    return Math.max(0, this.head.head.GetPosition().y);
+}
+
+Walker.prototype.getNormalizedHeadPosition = function() {
+    return this.getHeadPosition() / this.initial_head_position;
+}
+
+Walker.prototype.getTorsoPosition = function() {
+    return this.torso.upper_torso.GetPosition().x;
+}
+
+Walker.prototype.getPressureLineDistance = function() {
+    return Math.max(0, this.getTorsoPosition() - this.pressure_line_position);
+}
+
+Walker.prototype.isOffFloor = function() {
+    return globals.max_floor_x < this.getTorsoPosition();
+}
+
+Walker.prototype.isSlacker = function() {
+    return this.steps_without_improvement >= config.max_steps_without_improvement
 }
 
 Walker.prototype.destroyBody = function() {
@@ -309,75 +334,74 @@ Walker.prototype.getBodies = function() {
 
 Walker.prototype.createGenome = function(joints, bodies) {
     let genome = [];
-    let num_motorized_joints = this.joints.length;
-
-    for(let k = 0; k < num_motorized_joints; k++) {
-        let max_torque = this.joints[k].GetMaxMotorTorque();
+    for(let k = 0; k < this.joints.length; k++) {
         genome.push({
           //cos_factor: Math.random() * 6 - 3,
           //time_factor: Math.random() / 10,
           //time_shift: Math.random() * Math.PI * 2,
-          cos_factor: gaussianRandom(0, 3),
-          time_factor: gaussianRandom(0.1, 0.1),
-          time_shift: gaussianRandom(Math.PI, Math.PI * 2),
-          max_motor_torque: gaussianRandom(max_torque, max_torque * 0.2),
+          amplitude: gaussianRandom(0, 3),
+          phase: gaussianRandom(Math.PI, Math.PI * 2),
+          frequency: gaussianRandom(0.1, 0.1),
         });
     }
     return genome;
 }
 
-Walker.prototype.simulationStep = function(motor_noise) {
-    if (this.is_eliminated) {
-        return;
-    }
-
+Walker.prototype.updateJoints = function() {
     for(let k = 0; k < this.joints.length; k++) {
-        if (this.genome[k]) {
+        let gene = this.genome[k];
+        if (gene) {
             //let amp = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].cos_factor;
             //let phase = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_shift;
             //let freq = (1 + motor_noise*(Math.random()*2 - 1)) * this.genome[k].time_factor;
-            //this.joints[k].SetMotorSpeed(amp * Math.cos(phase + freq * this.local_step_counter));
-            let amp = this.genome[k].cos_factor;
-            let phase = this.genome[k].time_shift;
-            let freq = this.genome[k].time_factor;
-            let max_torque = this.genome[k].max_motor_torque;
-            //this.joints[k].SetMaxMotorTorque(max_torque);
-            this.joints[k].SetMotorSpeed(amp * Math.cos(phase + freq * this.local_step_counter));
+            this.joints[k].SetMotorSpeed(gene.amplitude * Math.cos(gene.phase + gene.frequency * this.local_step_counter));
         }
     }
+}
 
-    let current_torso_x = this.torso.upper_torso.GetPosition().x;
-    let movement_progress = Math.max(0.0, current_torso_x - this.max_torso_center_x);
-
-    if (movement_progress > 0.0) {
-        let current_head_y = this.head.head.GetPosition().y;
-        let normalized_head_y = Math.min(1.0, Math.max(0.0, current_head_y / config.max_reasonable_head_height));
-
-        let effective_posture_modifier = (1.0 + normalized_head_y) * (1.0 + normalized_head_y);
-
-        this.score += movement_progress * effective_posture_modifier;
-        this.steps_without_improvement = 0;
-    } else {
-        this.steps_without_improvement++;
-        if (this.steps_without_improvement >= config.max_steps_without_improvement) {
-            this.is_eliminated = true;
+Walker.prototype.updateMetrics = function() {
+    if (this.local_step_counter > 0) {
+        let torso_position = this.getTorsoPosition();
+        let forward_change = Math.max(0, torso_position - this.max_torso_position) * config.time_step;
+        this.max_torso_position = Math.max(this.max_torso_position, torso_position);
+        if (forward_change > 0) {
+            this.mean_head_height_sum += this.getNormalizedHeadPosition();
+            this.mean_forward_velocity_sum += forward_change;
+            this.steps_without_improvement = 0;
+        } else {
+            this.steps_without_improvement++;
         }
+        this.mean_head_height = this.mean_head_height_sum / this.local_step_counter;
+        this.mean_forward_velocity = this.mean_forward_velocity_sum / this.local_step_counter;
+        this.score = this.max_torso_position * (1.0 + this.mean_forward_velocity + this.mean_head_height);
     }
+}
 
-    if (current_torso_x > config.max_floor_x) {
-        this.is_eliminated = true;
-    }
-
-    this.pressure_line_x_position += this.pressure_line_speed;
+Walker.prototype.updatePressureLine = function() {
+    this.pressure_line_position += this.pressure_line_speed;
     this.pressure_line_speed += config.pressure_line_acceleration;
+}
 
-    if (current_torso_x <= this.pressure_line_x_position) {
+Walker.prototype.updateEliminated = function() {
+    if (this.isSlacker()) {
         this.is_eliminated = true;
     }
+    if (this.isOffFloor()) {
+        this.is_eliminated = true;
+    }
+    if (this.getPressureLineDistance() <= 0) {
+        this.is_eliminated = true;
+    }
+}
 
-    this.max_torso_center_x = Math.max(this.max_torso_center_x, current_torso_x);
-    this.max_distance = this.max_torso_center_x;
-    this.local_step_counter++;
+Walker.prototype.simulationStep = function() {
+    if (!this.is_eliminated) {
+        this.updateJoints();
+        this.updateMetrics();
+        this.updatePressureLine();
+        this.updateEliminated();
+        this.local_step_counter++;
+    }
 }
 
 Walker.prototype.makeName = function(genome) {

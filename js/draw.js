@@ -48,8 +48,7 @@ drawFloor = function() {
 }
 
 drawWalker = function(walker) {
-    let current_torso_x = walker.torso.upper_torso.GetPosition().x;
-    let pressure_line_distance = current_torso_x - walker.pressure_line_x_position;
+    let pressure_line_distance = walker.getPressureLineDistance();
     let normalized_distance = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
     let brightness_factor = 40 + 50 * normalized_distance;
     let saturation_factor = 30 + 40 * normalized_distance;

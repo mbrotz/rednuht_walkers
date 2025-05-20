@@ -36,7 +36,7 @@ Population.prototype.simulationStep = function() {
             walker.id = this.getNextWalkerId();
             this.walkers[k] = walker;
         }
-        walker.simulationStep(config.motor_noise);
+        walker.simulationStep();
     }
 }
 
@@ -64,6 +64,8 @@ History.prototype.addWalker = function(walker) {
             id: walker.id,
             name: walker.name,
             score: walker.score,
+            mean_head_height: walker.mean_head_height,
+            mean_forward_velocity: walker.mean_forward_velocity,
             genome: JSON.stringify(walker.genome),
         });
         this.record_score = walker.score;

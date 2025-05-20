@@ -47,7 +47,7 @@ setSimulationFps = function(fps) {
     }
 }
 
-updateNameList = function(name_list, walker, push_to_front = false) {
+updateNameList = function(name_list, walker, is_history = false) {
     let tr = document.createElement("TR");
     let td = document.createElement("TD");
     td.className = "id";
@@ -59,15 +59,17 @@ updateNameList = function(name_list, walker, push_to_front = false) {
     tr.appendChild(td);
     td = document.createElement("TD");
     td.className = "score";
-    td.appendChild(document.createTextNode(walker.score.toFixed(2)));
-    tr.appendChild(td);
-    if (push_to_front === true) {
+    if (is_history === true) {
+        td.appendChild(document.createTextNode(walker.score.toFixed(2) + " (H: " + walker.mean_head_height.toFixed(2) + ", V: " + walker.mean_forward_velocity.toFixed(2) + ")"));
+        tr.appendChild(td);
         if (name_list.firstChild) {
             name_list.insertBefore(tr, name_list.firstChild)
         } else {
             name_list.appendChild(tr);
         }
     } else {
+        td.appendChild(document.createTextNode(walker.score.toFixed(2)));
+        tr.appendChild(td);
         name_list.appendChild(tr);
     }
 }

@@ -9,7 +9,6 @@
 
     mutation_chance: 1,
     mutation_amount: 0.05,
-    motor_noise: 0.0,
 
     population_size: 40,
     history_size: 40,
@@ -22,7 +21,6 @@
     genepool_gene_mutation_chance: 1.0,
     genepool_gene_mutation_strength: 0.05,
 
-    max_reasonable_head_height: 1.5,
     pressure_line_starting_offset: 1.75,
     pressure_line_base_speed: 0.001,
     pressure_line_acceleration: 0.000001,
@@ -71,7 +69,7 @@ function createFloor() {
         let ratio = k/config.max_floor_tiles;
         edges.push(new b2.Vec2(edges[edges.length-1].x + 1,-0.16));
     }
-    config.max_floor_x = edges[edges.length-1].x;
+    globals.max_floor_x = edges[edges.length-1].x;
     fix_def.shape.CreateChain(edges, edges.length);
     let floorFixtureInstance = body.CreateFixture(fix_def);
     floorFixtureInstance.SetUserData({ isFloor: true });
