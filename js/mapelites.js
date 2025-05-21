@@ -41,7 +41,7 @@ MapElites.prototype.__constructor = function(config) {
 }
 
 MapElites.prototype._selectFittingBin = function(walker) {
-    if (walker.mean_head_height < 0.0 || walker.mean_head_height > 1.0) {
+    if (walker.mean_head_height < this.threshold || walker.mean_head_height > 1.0) {
         return null;
     }
     let fitting_bin = null;

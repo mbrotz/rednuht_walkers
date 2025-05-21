@@ -18,13 +18,14 @@ Camera.prototype._calculateMinMax = function(walkers) {
     let activeWalkerFound = false;
     for (let k = 0; k < walkers.length; k++) {
         let walker = walkers[k];
-        if (walker && !walker.is_eliminated) {
+        if (walker && walker.body && !walker.is_eliminated) {
+            let body = walker.body;
             activeWalkerFound = true;
-            let dist = walker.torso.upper_torso.GetPosition();
+            let dist = body.torso.upper_torso.GetPosition();
             min_x = Math.min(min_x, dist.x);
             max_x = Math.max(max_x, dist.x);
-            let current_head_y_for_zoom = walker.head.head.GetPosition().y;
-            let current_low_foot_y_for_zoom = Math.min(walker.left_leg.foot.GetPosition().y, walker.right_leg.foot.GetPosition().y);
+            let current_head_y_for_zoom = body.head.head.GetPosition().y;
+            let current_low_foot_y_for_zoom = Math.min(body.left_leg.foot.GetPosition().y, body.right_leg.foot.GetPosition().y);
             min_y = Math.min(min_y, current_low_foot_y_for_zoom, current_head_y_for_zoom);
             max_y = Math.max(max_y, dist.y, current_head_y_for_zoom);
         }
@@ -170,21 +171,10 @@ drawWalker = function(camera, ctx, walker) {
     let saturation_factor = 30 + 40 * normalized_distance;
     ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
     ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";
-    ctx.lineWidth = camera.screenToWorldWidth(1);;
-    drawBodyPart(ctx, walker.left_arm.lower_arm);
-    drawBodyPart(ctx, walker.left_arm.upper_arm);
-    drawBodyPart(ctx, walker.left_leg.foot);
-    drawBodyPart(ctx, walker.left_leg.lower_leg);
-    drawBodyPart(ctx, walker.left_leg.upper_leg);
-    drawBodyPart(ctx, walker.head.neck);
-    drawBodyPart(ctx, walker.head.head);
-    drawBodyPart(ctx, walker.torso.lower_torso);
-    drawBodyPart(ctx, walker.torso.upper_torso);
-    drawBodyPart(ctx, walker.right_leg.upper_leg);
-    drawBodyPart(ctx, walker.right_leg.lower_leg);
-    drawBodyPart(ctx, walker.right_leg.foot);
-    drawBodyPart(ctx, walker.right_arm.upper_arm);
-    drawBodyPart(ctx, walker.right_arm.lower_arm);
+    ctx.lineWidth = camera.screenToWorldWidth(1);
+    for (let i = 0; i < walker.body.bodies.length; i++) {
+        drawBodyPart(ctx, walker.body.bodies[i]);
+    }
 }
 
 drawWalkers = function(camera, ctx, walkers) {
