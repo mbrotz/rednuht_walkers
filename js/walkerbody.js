@@ -73,43 +73,64 @@ WalkerBody.prototype.__constructor = function(owner, world, density) {
     this.torso_joint_def = {
         lowerAngle: -Math.PI / 18,
         upperAngle: Math.PI / 10,
-        maxMotorTorque: 250
+        maxMotorTorque: 250,
+        anchorOnBodyA: true,
+        offsetX: -this.torso_def.lower_torso.width / 3,
+        offsetY: -this.torso_def.upper_torso.height / 2
     };
 
     this.knee_joint_def = {
         lowerAngle: -1.6,
         upperAngle: -0.2,
-        maxMotorTorque: 160
+        maxMotorTorque: 160,
+        anchorOnBodyA: true, // Anchor relative to bodyA (upper_leg)
+        offsetX: this.leg_def.upper_leg.width / 4,
+        offsetY: -this.leg_def.upper_leg.length / 2
     };
 
     this.ankle_joint_def = {
         lowerAngle: -Math.PI / 5,
         upperAngle: Math.PI / 6,
-        maxMotorTorque: 70
+        maxMotorTorque: 70,
+        anchorOnBodyA: true, // Anchor relative to bodyA (lower_leg)
+        offsetX: 0,
+        offsetY: -this.leg_def.lower_leg.length / 2
     };
 
     this.elbow_joint_def = {
         lowerAngle: 0,
         upperAngle: 1.22,
-        maxMotorTorque: 60
+        maxMotorTorque: 60,
+        anchorOnBodyA: true, // Anchor relative to bodyA (upper_arm)
+        offsetX: 0,
+        offsetY: -this.arm_def.upper_arm.length / 2
     };
 
     this.neck_joint_def = { // Joint between head and neck body parts
         lowerAngle: -0.1,
         upperAngle: 0.1,
-        maxMotorTorque: 2
+        maxMotorTorque: 2,
+        anchorOnBodyA: false, // Anchor relative to bodyB (neck)
+        offsetX: 0,
+        offsetY: this.head_def.neck.height / 2
     };
 
     this.shoulder_joint_def = { // Joint between torso and upper arm
         lowerAngle: -Math.PI / 2,
         upperAngle: Math.PI / 1.5,
-        maxMotorTorque: 120
+        maxMotorTorque: 120,
+        anchorOnBodyA: true, // Anchor relative to bodyA (upper_torso)
+        offsetX: 0,
+        offsetY: this.torso_def.upper_torso.height / 2
     };
 
     this.hip_joint_def = { // Joint between torso and upper leg
         lowerAngle: -Math.PI / 2.5,
         upperAngle: Math.PI / 3,
-        maxMotorTorque: 250
+        maxMotorTorque: 250,
+        anchorOnBodyA: true, // Anchor relative to bodyA (lower_torso)
+        offsetX: 0,
+        offsetY: -this.torso_def.lower_torso.height / 2
     };
 
     this.joints = [];
@@ -131,10 +152,18 @@ WalkerBody.prototype.__constructor = function(owner, world, density) {
  * These joints are typically motorized and added to the this.joints array.
  * @param {b2.Body} bodyA The first body.
  * @param {b2.Body} bodyB The second body.
- * @param {b2.Vec2} worldAnchorPos The anchor point in world coordinates.
- * @param {object} jointConfig An object with lowerAngle, upperAngle, and maxMotorTorque.
+ * @param {object} jointConfig The joint configuration
  */
-WalkerBody.prototype._createRevoluteJoint = function(bodyA, bodyB, worldAnchorPos, jointConfig) {
+WalkerBody.prototype._createRevoluteJoint = function(bodyA, bodyB, jointConfig) {
+    let worldAnchorPos;
+    if (jointConfig.anchorOnBodyA) {
+        worldAnchorPos = bodyA.GetPosition().Clone();
+    } else {
+        worldAnchorPos = bodyB.GetPosition().Clone();
+    }
+    worldAnchorPos.x += (jointConfig.offsetX || 0);
+    worldAnchorPos.y += (jointConfig.offsetY || 0);
+
     let jd = new b2.RevoluteJointDef();
     jd.Initialize(bodyA, bodyB, worldAnchorPos);
     jd.lowerAngle = jointConfig.lowerAngle;
@@ -182,10 +211,7 @@ WalkerBody.prototype._createTorso = function() {
     this.fd.shape.SetAsBox(this.torso_def.lower_torso.width / 2, this.torso_def.lower_torso.height / 2);
     lower_torso.CreateFixture(this.fd);
 
-    let torso_joint_anchor = upper_torso.GetPosition().Clone();
-    torso_joint_anchor.y -= this.torso_def.upper_torso.height / 2;
-    torso_joint_anchor.x -= this.torso_def.lower_torso.width / 3;
-    this._createRevoluteJoint(upper_torso, lower_torso, torso_joint_anchor, this.torso_joint_def);
+    this._createRevoluteJoint(upper_torso, lower_torso, this.torso_joint_def);
 
     return {upper_torso: upper_torso, lower_torso: lower_torso};
 };
@@ -213,15 +239,10 @@ WalkerBody.prototype._createLeg = function() {
     foot.CreateFixture(this.fd);
 
     // Knee Joint
-    let knee_anchor_pos = upper_leg.GetPosition().Clone();
-    knee_anchor_pos.y -= this.leg_def.upper_leg.length / 2;
-    knee_anchor_pos.x += this.leg_def.upper_leg.width / 4;
-    this._createRevoluteJoint(upper_leg, lower_leg, knee_anchor_pos, this.knee_joint_def);
+    this._createRevoluteJoint(upper_leg, lower_leg, this.knee_joint_def);
 
     // Ankle Joint
-    let ankle_anchor_pos = lower_leg.GetPosition().Clone();
-    ankle_anchor_pos.y -= this.leg_def.lower_leg.length / 2;
-    this._createRevoluteJoint(lower_leg, foot, ankle_anchor_pos, this.ankle_joint_def);
+    this._createRevoluteJoint(lower_leg, foot, this.ankle_joint_def);
 
     return {upper_leg: upper_leg, lower_leg: lower_leg, foot:foot};
 };
@@ -243,9 +264,7 @@ WalkerBody.prototype._createArm = function() {
     lower_arm.CreateFixture(this.fd);
 
     // Elbow Joint
-    let elbow_anchor_pos = upper_arm.GetPosition().Clone();
-    elbow_anchor_pos.y -= this.arm_def.upper_arm.length / 2;
-    this._createRevoluteJoint(upper_arm, lower_arm, elbow_anchor_pos, this.elbow_joint_def);
+    this._createRevoluteJoint(upper_arm, lower_arm, this.elbow_joint_def);
 
     return {upper_arm: upper_arm, lower_arm: lower_arm};
 };
@@ -261,18 +280,17 @@ WalkerBody.prototype._createHead = function() {
     neck.CreateFixture(this.fd);
 
     this.bd.position.Set(initialX, torsoTopY + this.head_def.neck.height + this.head_def.head.height / 2);
-    let headBody = this.world.CreateBody(this.bd);
+    let head = this.world.CreateBody(this.bd);
 
     this.fd.shape.SetAsBox(this.head_def.head.width / 2, this.head_def.head.height / 2);
-    let headFixture = headBody.CreateFixture(this.fd);
+    let headFixture = head.CreateFixture(this.fd);
     headFixture.SetUserData({ isHead: true, walker: this.owner });
 
     // Neck Joint (connecting head body part to neck body part)
-    let neck_anchor_pos = neck.GetPosition().Clone();
-    neck_anchor_pos.y += this.head_def.neck.height / 2;
-    this._createRevoluteJoint(headBody, neck, neck_anchor_pos, this.neck_joint_def);
+    // Note: bodyA is head, bodyB is neck. anchorOnBodyA: false means anchor is relative to neck.
+    this._createRevoluteJoint(head, neck, this.neck_joint_def);
 
-    return {head: headBody, neck: neck};
+    return {head: head, neck: neck};
 };
 
 WalkerBody.prototype._connectParts = function() {
@@ -285,18 +303,14 @@ WalkerBody.prototype._connectParts = function() {
     );
 
     // Shoulder Joints
-    let shoulder_anchor_pos = this.torso.upper_torso.GetPosition().Clone();
-    shoulder_anchor_pos.y += this.torso_def.upper_torso.height / 2;
-
-    this._createRevoluteJoint(this.torso.upper_torso, this.right_arm.upper_arm, shoulder_anchor_pos, this.shoulder_joint_def);
-    this._createRevoluteJoint(this.torso.upper_torso, this.left_arm.upper_arm, shoulder_anchor_pos, this.shoulder_joint_def);
+    // Note: bodyA is upper_torso. anchorOnBodyA: true means anchor is relative to upper_torso.
+    this._createRevoluteJoint(this.torso.upper_torso, this.right_arm.upper_arm, this.shoulder_joint_def);
+    this._createRevoluteJoint(this.torso.upper_torso, this.left_arm.upper_arm, this.shoulder_joint_def);
 
     // Hip Joints
-    let hip_anchor_pos = this.torso.lower_torso.GetPosition().Clone();
-    hip_anchor_pos.y -= this.torso_def.lower_torso.height / 2;
-
-    this._createRevoluteJoint(this.torso.lower_torso, this.right_leg.upper_leg, hip_anchor_pos, this.hip_joint_def);
-    this._createRevoluteJoint(this.torso.lower_torso, this.left_leg.upper_leg, hip_anchor_pos, this.hip_joint_def);
+    // Note: bodyA is lower_torso. anchorOnBodyA: true means anchor is relative to lower_torso.
+    this._createRevoluteJoint(this.torso.lower_torso, this.right_leg.upper_leg, this.hip_joint_def);
+    this._createRevoluteJoint(this.torso.lower_torso, this.left_leg.upper_leg, this.hip_joint_def);
 };
 
 WalkerBody.prototype._getBodies = function() {
