@@ -184,7 +184,7 @@ WalkerBody.prototype._createTorso = function() {
 
     let torso_joint_anchor = upper_torso.GetPosition().Clone();
     torso_joint_anchor.y -= this.torso_def.upper_torso.height / 2;
-    torso_joint_anchor.x -= this.torso_def.lower_torso.width / 3; // Original offset logic
+    torso_joint_anchor.x -= this.torso_def.lower_torso.width / 3;
     this._createRevoluteJoint(upper_torso, lower_torso, torso_joint_anchor, this.torso_joint_def);
 
     return {upper_torso: upper_torso, lower_torso: lower_torso};
@@ -192,7 +192,7 @@ WalkerBody.prototype._createTorso = function() {
 
 WalkerBody.prototype._createLeg = function() {
     const initialX = 0.5 - this.leg_def.foot.length / 2 + this.leg_def.lower_leg.width / 2;
-    const footBaseHeight = this.leg_def.foot.height / 2 + this.leg_def.foot.height / 2; // Accounts for foot height twice in original formula
+    const footBaseHeight = this.leg_def.foot.height;
 
     this.bd.position.Set(initialX, footBaseHeight + this.leg_def.lower_leg.length + this.leg_def.upper_leg.length / 2);
     let upper_leg = this.world.CreateBody(this.bd); // Femur
@@ -215,7 +215,7 @@ WalkerBody.prototype._createLeg = function() {
     // Knee Joint
     let knee_anchor_pos = upper_leg.GetPosition().Clone();
     knee_anchor_pos.y -= this.leg_def.upper_leg.length / 2;
-    knee_anchor_pos.x += this.leg_def.upper_leg.width / 4; // Original offset logic
+    knee_anchor_pos.x += this.leg_def.upper_leg.width / 4;
     this._createRevoluteJoint(upper_leg, lower_leg, knee_anchor_pos, this.knee_joint_def);
 
     // Ankle Joint
