@@ -213,6 +213,8 @@ function deselectMapElitesBin() {
 }
 
 function findClickedMapElitesBin(event) {
+    const threshold = globals.mapelites.threshold;
+    const range = globals.mapelites.range;
     const bins = globals.mapelites.bins;
     const canvas = globals.mapelites_canvas;
     const canvasWidth = canvas.width;
@@ -220,8 +222,8 @@ function findClickedMapElitesBin(event) {
     const clickX = event.clientX - rect.left;
     for (let i = 0; i < bins.length; i++) {
         const bin = bins[i];
-        const startX = canvasWidth * bin.low;
-        const endX = canvasWidth * bin.high;
+        const startX = canvasWidth * (bin.low - threshold);
+        const endX = canvasWidth * (bin.high - threshold);
         if (clickX >= startX && clickX < endX) {
             return bins[i];
         }

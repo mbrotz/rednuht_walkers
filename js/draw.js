@@ -275,6 +275,19 @@ drawMapElites = function() {
         return;
     }
 
+    const range = globals.mapelites.range;
+    if (range <= 0) {
+        context.fillStyle = "#ddd";
+        context.fillRect(0,0, canvasWidth, canvasHeight);
+        context.strokeStyle = "#aaa";
+        context.strokeRect(0,0, canvasWidth, canvasHeight);
+        context.fillStyle = "#555";
+        context.font = "10px sans-serif";
+        context.textAlign = "center";
+        context.fillText("Map Elites Range Too Small", canvasWidth / 2, canvasHeight / 2 + 4);
+        return;
+    }
+
     let maxRecordScoreOverall = 0;
 
     // Find the maximum record score across all bins for normalization
@@ -285,60 +298,53 @@ drawMapElites = function() {
     }
 
     // Draw each bin
+    const threshold = globals.mapelites.threshold;
     for (let i = 0; i < bins.length; i++) {
         const bin = bins[i];
-        const binWidth = canvasWidth * bin.range;
-        const x_position = canvasWidth * bin.low;
+        const x_start = canvasWidth * (bin.low - threshold);
+        const x_end = canvasWidth * (bin.high - threshold);
+        const binWidth = x_end - x_start;
+        
         let normalized_score = 0;
-
         if (bin && bin.genepool && bin.genepool.history) {
             const current_bin_score = bin.genepool.history.record_score;
             if (maxRecordScoreOverall > 0) {
                 normalized_score = current_bin_score / maxRecordScoreOverall;
             }
         }
-        
         normalized_score = Math.max(0, Math.min(1, normalized_score)); // Clamp between 0 and 1
 
         // Color: White for low score (0), Black for high score (1)
         const gray_value = Math.floor(255 * (1 - normalized_score)); 
         context.fillStyle = "rgb(" + gray_value + "," + gray_value + "," + gray_value + ")";
-        context.fillRect(x_position, 0, binWidth + 2, canvasHeight);
+        context.fillRect(x_start, 0, binWidth, canvasHeight);
 
         // Draw a light border for each bin
         context.strokeStyle = "#bbb"; 
         context.lineWidth = 0.5;
-        context.strokeRect(x_position, 0, binWidth, canvasHeight);
-        
+        context.strokeRect(x_start, 0, binWidth, canvasHeight);
+
         if (!bin.enabled) {
             context.strokeStyle = "red";
             context.lineWidth = 2;
-            const x_end = canvasWidth * bin.high;
             context.beginPath();
-            context.moveTo(x_position, 0);
+            context.moveTo(x_start, 0);
             context.lineTo(x_end, canvasHeight);
             context.moveTo(x_end, 0);
-            context.lineTo(x_position, canvasHeight);
+            context.lineTo(x_start, canvasHeight);
             context.closePath();
             context.stroke();
         }
     }
-
-    // Draw highlight for the selected bin
-    if (globals.selectedMapElitesBin !== undefined && globals.selectedMapElitesBin !== -1) {
-        const selectedIdx = globals.selectedMapElitesBin;
-        if (selectedIdx >= 0 && selectedIdx < bins.length) {
-            const bin = bins[selectedIdx];
-            const binWidth = canvasWidth * bin.range;
-            const selected_x = canvasWidth * bin.low;
-            context.strokeStyle = "red"; 
-            context.lineWidth = 2; 
-            // Adjust to draw the border inside the bin area
-            context.strokeRect(selected_x + context.lineWidth / 2, 
-                               context.lineWidth / 2, 
-                               binWidth - context.lineWidth, 
-                               canvasHeight - context.lineWidth);
-        }
+     
+    if (globals.selectedMapElitesBin > -1) {
+        const bin = bins[globals.selectedMapElitesBin];
+        const x_start = canvasWidth * (bin.low - threshold);
+        const x_end = canvasWidth * (bin.high - threshold);
+        const binWidth = x_end - x_start;
+        context.strokeStyle = "red"; 
+        context.lineWidth = 2;
+        context.strokeRect(x_start + 1, 1, binWidth - 2, canvasHeight - 2);
     }
 }
 

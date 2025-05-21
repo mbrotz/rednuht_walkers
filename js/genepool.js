@@ -6,7 +6,7 @@ let GenePool = function() {
 GenePool.prototype.__constructor = function(config) {
     this.threshold = config.genepool_threshold;
     this.range_decay = config.genepool_range_decay;
-    this.range = 1.0 - config.genepool_threshold;
+    this.range = 1.0 - this.threshold;
     this.num_tiers = config.genepool_tiers;
     this.tier_capacity = config.genepool_tier_capacity;
     this.tier_selection_pressure = config.genepool_tier_selection_pressure;
@@ -48,7 +48,6 @@ GenePool.prototype.__constructor = function(config) {
         current_threshold += this.range * tier.range;
         tier.high = current_threshold;
     }
-    this.tiers[this.num_tiers-1].high = 1.0;
 };
 
 GenePool.prototype._update_mean = function(tier_index, delta) {
@@ -98,6 +97,41 @@ GenePool.prototype._remove_lowest_performing_entry = function(tier_index, min_sc
     return null;
 }
 
+GenePool.prototype._find_lowest_head_entry = function(tier_index) {
+    let tier = this.tiers[tier_index];
+    if (tier.entries.length == 0) {
+        return -1;
+    }
+    let entry = null;
+    let index = -1;
+    for (let i = 0; i < tier.entries.length; i++) {
+        let e = tier.entries[i];
+        if (entry === null || e.mean_head_height < entry.mean_head_height) {
+            entry = e;
+            index = i;
+        }
+    }
+    if (entry === null) {
+        return -1;
+    }
+    return index;
+}
+
+GenePool.prototype._remove_lowest_head_entry = function(tier_index, min_head_height = undefined) {
+    let index = this._find_lowest_head_entry(tier_index);
+    if (index >= 0) {
+        let tier = this.tiers[tier_index];
+        let entry = tier.entries[index];
+        if (min_head_height === undefined || entry.mean_head_height <= min_head_height) {
+            tier.entries.splice(index, 1);
+            this.num_walkers--;
+            this._update_mean(tier_index, -entry.score);
+            return entry;
+        }
+    }
+    return null;
+}
+
 GenePool.prototype._remove_oldest_entry = function(tier_index) {
     let tier = this.tiers[tier_index];
     if (tier.entries.length > 0) {
@@ -122,7 +156,7 @@ GenePool.prototype._adjust_entry = function(tier_index, entry) {
                 this._update_mean(i, entry.score);
                 return i;
             }
-            let replacable_entry_index = this._find_lowest_performing_entry(i);
+            let replacable_entry_index = this._find_lowest_head_entry(i);
             let replacable_entry = tier.entries[replacable_entry_index];
             if (replacable_entry.score < entry.score) {
                 this._update_mean(i, -replacable_entry.score);
@@ -174,10 +208,10 @@ GenePool.prototype._place_genome = function(walker) {
         let tier = this.tiers[i];
         if (walker.score >= tier.low_score) {
             if (tier.entries.length >= this.tier_capacity) {
-                let removed_entry = this._remove_lowest_performing_entry(i, walker.score);
+                let removed_entry = this._remove_lowest_head_entry(i, walker.mean_head_height);
                 if (removed_entry === null) {
                     if (Math.random() < 0.25)
-                        this._remove_oldest_entry(i);
+                        this._remove_lowest_head_entry(i);
                     else
                         return false;
                 }

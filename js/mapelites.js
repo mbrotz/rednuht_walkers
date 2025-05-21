@@ -5,11 +5,13 @@ let MapElites = function() {
 
 MapElites.prototype.__constructor = function(config) {
     this.history = new History(config);
+    this.threshold = config.mapelites_threshold;
+    this.range = 1.0 - this.threshold;
     this.range_decay = config.mapelites_range_decay;
     this.bin_selection_pressure = config.mapelites_bin_selection_pressure;
     this.num_height_bins = config.mapelites_height_bins;
     this.bins = [];
-    let current_range = 1.0;
+    let current_range = this.range;
     for (let i = 0; i < this.num_height_bins; i++) {
         let bin = {
             index: i,
@@ -29,14 +31,13 @@ MapElites.prototype.__constructor = function(config) {
     for (let i = 0; i < this.num_height_bins; i++) {
         this.bins[i].range /= range_sum;
     }
-    let current_threshold = 0.0;
+    let current_threshold = this.threshold;
     for (let i = 0; i < this.num_height_bins; i++) {
         let bin = this.bins[i];
         bin.low = current_threshold;
         current_threshold += bin.range;
         bin.high = current_threshold;
     }
-    this.bins[this.num_height_bins-1].high = 1.0;
 }
 
 MapElites.prototype._selectFittingBin = function(walker) {

@@ -14,6 +14,7 @@
     history_size: 40,
     
     mapelites_height_bins: 60,
+    mapelites_threshold: 0.2,
     mapelites_range_decay: 0.98,
     mapelites_bin_selection_pressure: 5.0,
 
@@ -29,7 +30,7 @@
     pressure_line_base_speed: 0.001,
     pressure_line_acceleration: 0.000001,
     max_steps_without_improvement: 240,
-    head_floor_collision_kills: false,
+    head_floor_collision_kills: true,
 };
 
 globals = {
