@@ -108,6 +108,46 @@ WalkerBody.prototype.__constructor = function(owner, world, density) {
     this.bodies = this._getBodies();
 };
 
+/**
+ * Helper function to create a revolute joint with common settings.
+ * These joints are typically motorized and added to the this.joints array.
+ * @param {b2.Body} bodyA The first body.
+ * @param {b2.Body} bodyB The second body.
+ * @param {b2.Vec2} worldAnchorPos The anchor point in world coordinates.
+ * @param {object} jointConfig An object with lowerAngle, upperAngle, and maxMotorTorque.
+ */
+WalkerBody.prototype._createRevoluteJoint = function(bodyA, bodyB, worldAnchorPos, jointConfig) {
+    let jd = new b2.RevoluteJointDef();
+    jd.Initialize(bodyA, bodyB, worldAnchorPos);
+    jd.lowerAngle = jointConfig.lowerAngle;
+    jd.upperAngle = jointConfig.upperAngle;
+    jd.maxMotorTorque = jointConfig.maxMotorTorque;
+    jd.enableMotor = true;
+    jd.enableLimit = true;
+    jd.motorSpeed = 0;
+    this.joints.push(this.world.CreateJoint(jd));
+};
+
+/**
+ * Helper function to create a weld joint.
+ * These joints are typically static and are not added to the this.joints array
+ * @param {b2.Body} bodyA The first body.
+ * @param {b2.Body} bodyB The second body.
+ * @param {b2.Vec2} localAnchorA The anchor point on bodyA in its local coordinates.
+ * @param {b2.Vec2} localAnchorB The anchor point on bodyB in its local coordinates.
+ * @param {number} [referenceAngle=0] The initial angle between the bodies.
+ */
+WalkerBody.prototype._createWeldJoint = function(bodyA, bodyB, localAnchorA, localAnchorB, referenceAngle = 0) {
+    let jd = new b2.WeldJointDef();
+    jd.bodyA = bodyA;
+    jd.bodyB = bodyB;
+    jd.localAnchorA = localAnchorA.Clone();
+    jd.localAnchorB = localAnchorB.Clone();
+    jd.referenceAngle = referenceAngle;
+    this.world.CreateJoint(jd);
+};
+
+
 WalkerBody.prototype._createTorso = function() {
     this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height/2);
     let upper_torso = this.world.CreateBody(this.bd);
@@ -121,18 +161,10 @@ WalkerBody.prototype._createTorso = function() {
     this.fd.shape.SetAsBox(this.torso_def.lower_width/2, this.torso_def.lower_height/2);
     lower_torso.CreateFixture(this.fd);
 
-    let jd = new b2.RevoluteJointDef();
-    let position = upper_torso.GetPosition().Clone();
-    position.y -= this.torso_def.upper_height/2;
-    position.x -= this.torso_def.lower_width/3;
-    jd.Initialize(upper_torso, lower_torso, position);
-    jd.lowerAngle = this.torso_joint_def.lowerAngle;
-    jd.upperAngle = this.torso_joint_def.upperAngle;
-    jd.enableLimit = true;
-    jd.maxMotorTorque = this.torso_joint_def.maxMotorTorque;
-    jd.motorSpeed = 0;
-    jd.enableMotor = true;
-    this.joints.push(this.world.CreateJoint(jd));
+    let torso_joint_anchor = upper_torso.GetPosition().Clone();
+    torso_joint_anchor.y -= this.torso_def.upper_height/2;
+    torso_joint_anchor.x -= this.torso_def.lower_width/3;
+    this._createRevoluteJoint(upper_torso, lower_torso, torso_joint_anchor, this.torso_joint_def);
 
     return {upper_torso: upper_torso, lower_torso: lower_torso};
 };
@@ -157,31 +189,15 @@ WalkerBody.prototype._createLeg = function() {
     foot.CreateFixture(this.fd);
 
     // Knee Joint
-    let jd_knee = new b2.RevoluteJointDef();
-    let knee_pos = upper_leg.GetPosition().Clone();
-    knee_pos.y -= this.leg_def.femur_length/2;
-    knee_pos.x += this.leg_def.femur_width/4;
-    jd_knee.Initialize(upper_leg, lower_leg, knee_pos);
-    jd_knee.lowerAngle = this.knee_joint_def.lowerAngle;
-    jd_knee.upperAngle = this.knee_joint_def.upperAngle;
-    jd_knee.enableLimit = true;
-    jd_knee.maxMotorTorque = this.knee_joint_def.maxMotorTorque;
-    jd_knee.motorSpeed = 0;
-    jd_knee.enableMotor = true;
-    this.joints.push(this.world.CreateJoint(jd_knee));
+    let knee_anchor_pos = upper_leg.GetPosition().Clone();
+    knee_anchor_pos.y -= this.leg_def.femur_length/2;
+    knee_anchor_pos.x += this.leg_def.femur_width/4;
+    this._createRevoluteJoint(upper_leg, lower_leg, knee_anchor_pos, this.knee_joint_def);
 
     // Ankle Joint
-    let jd_ankle = new b2.RevoluteJointDef();
-    let ankle_pos = lower_leg.GetPosition().Clone();
-    ankle_pos.y -= this.leg_def.tibia_length/2;
-    jd_ankle.Initialize(lower_leg, foot, ankle_pos);
-    jd_ankle.lowerAngle = this.ankle_joint_def.lowerAngle;
-    jd_ankle.upperAngle = this.ankle_joint_def.upperAngle;
-    jd_ankle.enableLimit = true;
-    jd_ankle.maxMotorTorque = this.ankle_joint_def.maxMotorTorque;
-    jd_ankle.motorSpeed = 0;
-    jd_ankle.enableMotor = true;
-    this.joints.push(this.world.CreateJoint(jd_ankle));
+    let ankle_anchor_pos = lower_leg.GetPosition().Clone();
+    ankle_anchor_pos.y -= this.leg_def.tibia_length/2;
+    this._createRevoluteJoint(lower_leg, foot, ankle_anchor_pos, this.ankle_joint_def);
 
     return {upper_leg: upper_leg, lower_leg: lower_leg, foot:foot};
 };
@@ -200,17 +216,9 @@ WalkerBody.prototype._createArm = function() {
     lower_arm.CreateFixture(this.fd);
 
     // Elbow Joint
-    let jd_elbow = new b2.RevoluteJointDef();
-    let elbow_pos = upper_arm.GetPosition().Clone();
-    elbow_pos.y -= this.arm_def.arm_length/2;
-    jd_elbow.Initialize(upper_arm, lower_arm, elbow_pos);
-    jd_elbow.lowerAngle = this.elbow_joint_def.lowerAngle;
-    jd_elbow.upperAngle = this.elbow_joint_def.upperAngle;
-    jd_elbow.enableLimit = true;
-    jd_elbow.maxMotorTorque = this.elbow_joint_def.maxMotorTorque;
-    jd_elbow.motorSpeed = 0;
-    jd_elbow.enableMotor = true;
-    this.joints.push(this.world.CreateJoint(jd_elbow));
+    let elbow_anchor_pos = upper_arm.GetPosition().Clone();
+    elbow_anchor_pos.y -= this.arm_def.arm_length/2;
+    this._createRevoluteJoint(upper_arm, lower_arm, elbow_anchor_pos, this.elbow_joint_def);
 
     return {upper_arm: upper_arm, lower_arm: lower_arm};
 };
@@ -230,79 +238,35 @@ WalkerBody.prototype._createHead = function() {
     headFixture.SetUserData({ isHead: true, walker: this.owner });
 
     // Neck Joint (connecting head body part to neck body part)
-    let jd_neck = new b2.RevoluteJointDef();
-    let neck_joint_pos = neck.GetPosition().Clone();
-    neck_joint_pos.y += this.head_def.neck_height/2;
-    jd_neck.Initialize(headBody, neck, neck_joint_pos);
-    jd_neck.lowerAngle = this.neck_joint_def.lowerAngle;
-    jd_neck.upperAngle = this.neck_joint_def.upperAngle;
-    jd_neck.enableLimit = true;
-    jd_neck.maxMotorTorque = this.neck_joint_def.maxMotorTorque;
-    jd_neck.motorSpeed = 0;
-    jd_neck.enableMotor = true;
-    this.joints.push(this.world.CreateJoint(jd_neck));
+    let neck_anchor_pos = neck.GetPosition().Clone();
+    neck_anchor_pos.y += this.head_def.neck_height/2;
+    this._createRevoluteJoint(headBody, neck, neck_anchor_pos, this.neck_joint_def);
 
     return {head: headBody, neck: neck};
 };
 
 WalkerBody.prototype._connectParts = function() {
-    let jd_weld = new b2.WeldJointDef();
-    jd_weld.bodyA = this.head.neck;
-    jd_weld.bodyB = this.torso.upper_torso;
-    jd_weld.localAnchorA = new b2.Vec2(0, -this.head_def.neck_height/2);
-    jd_weld.localAnchorB = new b2.Vec2(0, this.torso_def.upper_height/2);
-    jd_weld.referenceAngle = 0;
-    this.world.CreateJoint(jd_weld);
+    // Weld joint connecting neck to upper torso
+    this._createWeldJoint(
+        this.head.neck,
+        this.torso.upper_torso,
+        new b2.Vec2(0, -this.head_def.neck_height/2),
+        new b2.Vec2(0, this.torso_def.upper_height/2)
+    );
 
-    let arm_connect_pos = this.torso.upper_torso.GetPosition().Clone();
-    arm_connect_pos.y += this.torso_def.upper_height/2;
+    // Shoulder Joints
+    let shoulder_anchor_pos = this.torso.upper_torso.GetPosition().Clone();
+    shoulder_anchor_pos.y += this.torso_def.upper_height/2;
 
-    // Right Shoulder Joint
-    let jd_right_shoulder = new b2.RevoluteJointDef();
-    jd_right_shoulder.Initialize(this.torso.upper_torso, this.right_arm.upper_arm, arm_connect_pos);
-    jd_right_shoulder.lowerAngle = this.shoulder_joint_def.lowerAngle;
-    jd_right_shoulder.upperAngle = this.shoulder_joint_def.upperAngle;
-    jd_right_shoulder.enableLimit = true;
-    jd_right_shoulder.maxMotorTorque = this.shoulder_joint_def.maxMotorTorque;
-    jd_right_shoulder.motorSpeed = 0;
-    jd_right_shoulder.enableMotor = true;
-    this.joints.push(this.world.CreateJoint(jd_right_shoulder));
+    this._createRevoluteJoint(this.torso.upper_torso, this.right_arm.upper_arm, shoulder_anchor_pos, this.shoulder_joint_def);
+    this._createRevoluteJoint(this.torso.upper_torso, this.left_arm.upper_arm, shoulder_anchor_pos, this.shoulder_joint_def);
 
-    // Left Shoulder Joint
-    let jd_left_shoulder = new b2.RevoluteJointDef();
-    jd_left_shoulder.Initialize(this.torso.upper_torso, this.left_arm.upper_arm, arm_connect_pos);
-    jd_left_shoulder.lowerAngle = this.shoulder_joint_def.lowerAngle;
-    jd_left_shoulder.upperAngle = this.shoulder_joint_def.upperAngle;
-    jd_left_shoulder.enableLimit = true;
-    jd_left_shoulder.maxMotorTorque = this.shoulder_joint_def.maxMotorTorque;
-    jd_left_shoulder.motorSpeed = 0;
-    jd_left_shoulder.enableMotor = true;
-    this.joints.push(this.world.CreateJoint(jd_left_shoulder));
+    // Hip Joints
+    let hip_anchor_pos = this.torso.lower_torso.GetPosition().Clone();
+    hip_anchor_pos.y -= this.torso_def.lower_height/2;
 
-    let leg_connect_pos = this.torso.lower_torso.GetPosition().Clone();
-    leg_connect_pos.y -= this.torso_def.lower_height/2;
-
-    // Right Hip Joint
-    let jd_right_hip = new b2.RevoluteJointDef();
-    jd_right_hip.Initialize(this.torso.lower_torso, this.right_leg.upper_leg, leg_connect_pos);
-    jd_right_hip.lowerAngle = this.hip_joint_def.lowerAngle;
-    jd_right_hip.upperAngle = this.hip_joint_def.upperAngle;
-    jd_right_hip.enableLimit = true;
-    jd_right_hip.maxMotorTorque = this.hip_joint_def.maxMotorTorque;
-    jd_right_hip.motorSpeed = 0;
-    jd_right_hip.enableMotor = true;
-    this.joints.push(this.world.CreateJoint(jd_right_hip));
-
-    // Left Hip Joint
-    let jd_left_hip = new b2.RevoluteJointDef();
-    jd_left_hip.Initialize(this.torso.lower_torso, this.left_leg.upper_leg, leg_connect_pos);
-    jd_left_hip.lowerAngle = this.hip_joint_def.lowerAngle;
-    jd_left_hip.upperAngle = this.hip_joint_def.upperAngle;
-    jd_left_hip.enableLimit = true;
-    jd_left_hip.maxMotorTorque = this.hip_joint_def.maxMotorTorque;
-    jd_left_hip.motorSpeed = 0;
-    jd_left_hip.enableMotor = true;
-    this.joints.push(this.world.CreateJoint(jd_left_hip));
+    this._createRevoluteJoint(this.torso.lower_torso, this.right_leg.upper_leg, hip_anchor_pos, this.hip_joint_def);
+    this._createRevoluteJoint(this.torso.lower_torso, this.left_leg.upper_leg, hip_anchor_pos, this.hip_joint_def);
 };
 
 WalkerBody.prototype._getBodies = function() {
