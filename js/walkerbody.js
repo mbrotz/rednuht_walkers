@@ -22,33 +22,51 @@ WalkerBody.prototype.__constructor = function(owner, world, density) {
     this.fd.filter.groupIndex = -1;
 
     this.torso_def = {
-        upper_width: 0.25,
-        upper_height: 0.45,
-        lower_width: 0.25,
-        lower_height: 0.2
+        upper_torso: {
+            width: 0.25,
+            height: 0.45
+        },
+        lower_torso: {
+            width: 0.25,
+            height: 0.2
+        }
     };
 
     this.leg_def = {
-        femur_width: 0.18,
-        femur_length: 0.45,
-        tibia_width: 0.13,
-        tibia_length: 0.38,
-        foot_height: 0.08,
-        foot_length: 0.28
+        upper_leg: { // Femur
+            width: 0.18,
+            length: 0.45
+        },
+        lower_leg: { // Tibia
+            width: 0.13,
+            length: 0.38
+        },
+        foot: {
+            height: 0.08,
+            length: 0.28
+        }
     };
 
     this.arm_def = {
-        arm_width: 0.12,
-        arm_length: 0.37,
-        forearm_width: 0.1,
-        forearm_length: 0.42
+        upper_arm: {
+            width: 0.12,
+            length: 0.37
+        },
+        lower_arm: { // Forearm
+            width: 0.1,
+            length: 0.42
+        }
     };
 
     this.head_def = {
-        head_width: 0.22,
-        head_height: 0.22,
-        neck_width: 0.1,
-        neck_height: 0.08
+        head: {
+            width: 0.22,
+            height: 0.22
+        },
+        neck: {
+            width: 0.1,
+            height: 0.08
+        }
     };
 
     // Joint Definitions
@@ -149,97 +167,109 @@ WalkerBody.prototype._createWeldJoint = function(bodyA, bodyB, localAnchorA, loc
 
 
 WalkerBody.prototype._createTorso = function() {
-    this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height/2);
+    const initialX = 0.5 - this.leg_def.foot.length / 2 + this.leg_def.lower_leg.width / 2;
+    const legStackHeight = this.leg_def.foot.height / 2 + this.leg_def.foot.height / 2 + this.leg_def.lower_leg.length + this.leg_def.upper_leg.length;
+
+    this.bd.position.Set(initialX, legStackHeight + this.torso_def.lower_torso.height + this.torso_def.upper_torso.height / 2);
     let upper_torso = this.world.CreateBody(this.bd);
 
-    this.fd.shape.SetAsBox(this.torso_def.upper_width/2, this.torso_def.upper_height/2);
+    this.fd.shape.SetAsBox(this.torso_def.upper_torso.width / 2, this.torso_def.upper_torso.height / 2);
     upper_torso.CreateFixture(this.fd);
 
-    this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height/2);
+    this.bd.position.Set(initialX, legStackHeight + this.torso_def.lower_torso.height / 2);
     let lower_torso = this.world.CreateBody(this.bd);
 
-    this.fd.shape.SetAsBox(this.torso_def.lower_width/2, this.torso_def.lower_height/2);
+    this.fd.shape.SetAsBox(this.torso_def.lower_torso.width / 2, this.torso_def.lower_torso.height / 2);
     lower_torso.CreateFixture(this.fd);
 
     let torso_joint_anchor = upper_torso.GetPosition().Clone();
-    torso_joint_anchor.y -= this.torso_def.upper_height/2;
-    torso_joint_anchor.x -= this.torso_def.lower_width/3;
+    torso_joint_anchor.y -= this.torso_def.upper_torso.height / 2;
+    torso_joint_anchor.x -= this.torso_def.lower_torso.width / 3; // Original offset logic
     this._createRevoluteJoint(upper_torso, lower_torso, torso_joint_anchor, this.torso_joint_def);
 
     return {upper_torso: upper_torso, lower_torso: lower_torso};
 };
 
 WalkerBody.prototype._createLeg = function() {
-    this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length/2);
+    const initialX = 0.5 - this.leg_def.foot.length / 2 + this.leg_def.lower_leg.width / 2;
+    const footBaseHeight = this.leg_def.foot.height / 2 + this.leg_def.foot.height / 2; // Accounts for foot height twice in original formula
+
+    this.bd.position.Set(initialX, footBaseHeight + this.leg_def.lower_leg.length + this.leg_def.upper_leg.length / 2);
     let upper_leg = this.world.CreateBody(this.bd); // Femur
 
-    this.fd.shape.SetAsBox(this.leg_def.femur_width/2, this.leg_def.femur_length/2);
+    this.fd.shape.SetAsBox(this.leg_def.upper_leg.width / 2, this.leg_def.upper_leg.length / 2);
     upper_leg.CreateFixture(this.fd);
 
-    this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length/2);
+    this.bd.position.Set(initialX, footBaseHeight + this.leg_def.lower_leg.length / 2);
     let lower_leg = this.world.CreateBody(this.bd); // Tibia
 
-    this.fd.shape.SetAsBox(this.leg_def.tibia_width/2, this.leg_def.tibia_length/2);
+    this.fd.shape.SetAsBox(this.leg_def.lower_leg.width / 2, this.leg_def.lower_leg.length / 2);
     lower_leg.CreateFixture(this.fd);
 
-    this.bd.position.Set(0.5, this.leg_def.foot_height/2);
+    this.bd.position.Set(0.5, this.leg_def.foot.height / 2);
     let foot = this.world.CreateBody(this.bd);
 
-    this.fd.shape.SetAsBox(this.leg_def.foot_length/2, this.leg_def.foot_height/2);
+    this.fd.shape.SetAsBox(this.leg_def.foot.length / 2, this.leg_def.foot.height / 2);
     foot.CreateFixture(this.fd);
 
     // Knee Joint
     let knee_anchor_pos = upper_leg.GetPosition().Clone();
-    knee_anchor_pos.y -= this.leg_def.femur_length/2;
-    knee_anchor_pos.x += this.leg_def.femur_width/4;
+    knee_anchor_pos.y -= this.leg_def.upper_leg.length / 2;
+    knee_anchor_pos.x += this.leg_def.upper_leg.width / 4; // Original offset logic
     this._createRevoluteJoint(upper_leg, lower_leg, knee_anchor_pos, this.knee_joint_def);
 
     // Ankle Joint
     let ankle_anchor_pos = lower_leg.GetPosition().Clone();
-    ankle_anchor_pos.y -= this.leg_def.tibia_length/2;
+    ankle_anchor_pos.y -= this.leg_def.lower_leg.length / 2;
     this._createRevoluteJoint(lower_leg, foot, ankle_anchor_pos, this.ankle_joint_def);
 
     return {upper_leg: upper_leg, lower_leg: lower_leg, foot:foot};
 };
 
 WalkerBody.prototype._createArm = function() {
-    this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height - this.arm_def.arm_length/2);
+    const initialX = 0.5 - this.leg_def.foot.length / 2 + this.leg_def.lower_leg.width / 2;
+    const torsoTopY = this.leg_def.foot.height / 2 + this.leg_def.foot.height / 2 + this.leg_def.lower_leg.length + this.leg_def.upper_leg.length + this.torso_def.lower_torso.height + this.torso_def.upper_torso.height;
+
+    this.bd.position.Set(initialX, torsoTopY - this.arm_def.upper_arm.length / 2);
     let upper_arm = this.world.CreateBody(this.bd);
 
-    this.fd.shape.SetAsBox(this.arm_def.arm_width/2, this.arm_def.arm_length/2);
+    this.fd.shape.SetAsBox(this.arm_def.upper_arm.width / 2, this.arm_def.upper_arm.length / 2);
     upper_arm.CreateFixture(this.fd);
 
-    this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height - this.arm_def.arm_length - this.arm_def.forearm_length/2);
+    this.bd.position.Set(initialX, torsoTopY - this.arm_def.upper_arm.length - this.arm_def.lower_arm.length / 2);
     let lower_arm = this.world.CreateBody(this.bd);
 
-    this.fd.shape.SetAsBox(this.arm_def.forearm_width/2, this.arm_def.forearm_length/2);
+    this.fd.shape.SetAsBox(this.arm_def.lower_arm.width / 2, this.arm_def.lower_arm.length / 2);
     lower_arm.CreateFixture(this.fd);
 
     // Elbow Joint
     let elbow_anchor_pos = upper_arm.GetPosition().Clone();
-    elbow_anchor_pos.y -= this.arm_def.arm_length/2;
+    elbow_anchor_pos.y -= this.arm_def.upper_arm.length / 2;
     this._createRevoluteJoint(upper_arm, lower_arm, elbow_anchor_pos, this.elbow_joint_def);
 
     return {upper_arm: upper_arm, lower_arm: lower_arm};
 };
 
 WalkerBody.prototype._createHead = function() {
-    this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height + this.head_def.neck_height/2);
+    const initialX = 0.5 - this.leg_def.foot.length / 2 + this.leg_def.lower_leg.width / 2;
+    const torsoTopY = this.leg_def.foot.height / 2 + this.leg_def.foot.height / 2 + this.leg_def.lower_leg.length + this.leg_def.upper_leg.length + this.torso_def.lower_torso.height + this.torso_def.upper_torso.height;
+
+    this.bd.position.Set(initialX, torsoTopY + this.head_def.neck.height / 2);
     let neck = this.world.CreateBody(this.bd);
 
-    this.fd.shape.SetAsBox(this.head_def.neck_width/2, this.head_def.neck_height/2);
+    this.fd.shape.SetAsBox(this.head_def.neck.width / 2, this.head_def.neck.height / 2);
     neck.CreateFixture(this.fd);
 
-    this.bd.position.Set(0.5 - this.leg_def.foot_length/2 + this.leg_def.tibia_width/2, this.leg_def.foot_height/2 + this.leg_def.foot_height/2 + this.leg_def.tibia_length + this.leg_def.femur_length + this.torso_def.lower_height + this.torso_def.upper_height + this.head_def.neck_height + this.head_def.head_height/2);
+    this.bd.position.Set(initialX, torsoTopY + this.head_def.neck.height + this.head_def.head.height / 2);
     let headBody = this.world.CreateBody(this.bd);
 
-    this.fd.shape.SetAsBox(this.head_def.head_width/2, this.head_def.head_height/2);
+    this.fd.shape.SetAsBox(this.head_def.head.width / 2, this.head_def.head.height / 2);
     let headFixture = headBody.CreateFixture(this.fd);
     headFixture.SetUserData({ isHead: true, walker: this.owner });
 
     // Neck Joint (connecting head body part to neck body part)
     let neck_anchor_pos = neck.GetPosition().Clone();
-    neck_anchor_pos.y += this.head_def.neck_height/2;
+    neck_anchor_pos.y += this.head_def.neck.height / 2;
     this._createRevoluteJoint(headBody, neck, neck_anchor_pos, this.neck_joint_def);
 
     return {head: headBody, neck: neck};
@@ -250,20 +280,20 @@ WalkerBody.prototype._connectParts = function() {
     this._createWeldJoint(
         this.head.neck,
         this.torso.upper_torso,
-        new b2.Vec2(0, -this.head_def.neck_height/2),
-        new b2.Vec2(0, this.torso_def.upper_height/2)
+        new b2.Vec2(0, -this.head_def.neck.height / 2),
+        new b2.Vec2(0, this.torso_def.upper_torso.height / 2)
     );
 
     // Shoulder Joints
     let shoulder_anchor_pos = this.torso.upper_torso.GetPosition().Clone();
-    shoulder_anchor_pos.y += this.torso_def.upper_height/2;
+    shoulder_anchor_pos.y += this.torso_def.upper_torso.height / 2;
 
     this._createRevoluteJoint(this.torso.upper_torso, this.right_arm.upper_arm, shoulder_anchor_pos, this.shoulder_joint_def);
     this._createRevoluteJoint(this.torso.upper_torso, this.left_arm.upper_arm, shoulder_anchor_pos, this.shoulder_joint_def);
 
     // Hip Joints
     let hip_anchor_pos = this.torso.lower_torso.GetPosition().Clone();
-    hip_anchor_pos.y -= this.torso_def.lower_height/2;
+    hip_anchor_pos.y -= this.torso_def.lower_torso.height / 2;
 
     this._createRevoluteJoint(this.torso.lower_torso, this.right_leg.upper_leg, hip_anchor_pos, this.hip_joint_def);
     this._createRevoluteJoint(this.torso.lower_torso, this.left_leg.upper_leg, hip_anchor_pos, this.hip_joint_def);
