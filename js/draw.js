@@ -275,7 +275,6 @@ drawMapElites = function() {
         return;
     }
 
-    const binWidth = canvasWidth / bins.length;
     let maxRecordScoreOverall = 0;
 
     // Find the maximum record score across all bins for normalization
@@ -288,7 +287,8 @@ drawMapElites = function() {
     // Draw each bin
     for (let i = 0; i < bins.length; i++) {
         const bin = bins[i];
-        const x_position = i * binWidth;
+        const binWidth = canvasWidth * bin.range;
+        const x_position = canvasWidth * bin.low;
         let normalized_score = 0;
 
         if (bin && bin.genepool && bin.genepool.history) {
@@ -315,7 +315,9 @@ drawMapElites = function() {
     if (globals.selectedMapElitesBin !== undefined && globals.selectedMapElitesBin !== -1) {
         const selectedIdx = globals.selectedMapElitesBin;
         if (selectedIdx >= 0 && selectedIdx < bins.length) {
-            const selected_x = selectedIdx * binWidth;
+            const bin = bins[selectedIdx];
+            const binWidth = canvasWidth * bin.range;
+            const selected_x = canvasWidth * bin.low;
             context.strokeStyle = "red"; 
             context.lineWidth = 2; 
             // Adjust to draw the border inside the bin area

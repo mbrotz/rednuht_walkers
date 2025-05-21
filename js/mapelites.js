@@ -5,41 +5,56 @@ let MapElites = function() {
 
 MapElites.prototype.__constructor = function(config) {
     this.history = new History(config);
+    this.range_decay = config.mapelites_range_decay;
     this.bin_selection_pressure = config.mapelites_bin_selection_pressure;
     this.num_height_bins = config.mapelites_height_bins;
-    this.bin_size = 1.0 / this.num_height_bins;
     this.bins = [];
+    let current_range = 1.0;
     for (let i = 0; i < this.num_height_bins; i++) {
         let bin = {
             index: i,
-            low: i * this.bin_size,
-            high: i * this.bin_size + this.bin_size,
+            range: current_range,
+            low: 0.0,
+            high: 0.0,
             genepool: new GenePool(config),
         };
         this.bins.push(bin);
+        current_range *= this.range_decay;
     }
-    this.bins[this.bins.length-1].high = 1.0;
+    let range_sum = 0.0;
+    for (let i = 0; i < this.num_height_bins; i++) {
+        range_sum += this.bins[i].range;
+    }
+    for (let i = 0; i < this.num_height_bins; i++) {
+        this.bins[i].range /= range_sum;
+    }
+    let current_threshold = 0.0;
+    for (let i = 0; i < this.num_height_bins; i++) {
+        let bin = this.bins[i];
+        bin.low = current_threshold;
+        current_threshold += bin.range;
+        bin.high = current_threshold;
+    }
+    this.bins[this.num_height_bins-1].high = 1.0;
 }
 
 MapElites.prototype._selectFittingBin = function(walker) {
     if (walker.mean_head_height < 0.0 || walker.mean_head_height > 1.0) {
         return null;
     }
-    let bin_index = Math.floor(walker.mean_head_height / this.bin_size);
-    if (bin_index < 0 || bin_index >= this.bins.length) {
-        console.error("invalid bin index");
+    let fitting_bin = null;
+    for (let i = 0; i < this.bins.length; i++) {
+        let bin = this.bins[i];
+        if (walker.mean_head_height >= bin.low && walker.mean_head_height < bin.high) {
+            fitting_bin = bin;
+            break;
+        }
+    }
+    if (fitting_bin === null) {
+        console.error("no fitting bin found");
         return null;
     }
-    let bin = this.bins[bin_index];
-    if (bin === null) {
-        console.error("null bin: " + bin_index);
-        return null;
-    }
-    if (walker.mean_head_height < bin.low || walker.mean_head_height > bin.high) {
-        console.log("invalid bin range! bin " + bin.index + ", low: " + bin.low.toFixed(2) + ", high: " + bin.high.toFixed(2) + ", walker.mean_head_height: " + walker.mean_head_height);
-        return null;
-    }
-    return bin;
+    return fitting_bin;
 }
 
 MapElites.prototype._selectEligibleBins = function() {

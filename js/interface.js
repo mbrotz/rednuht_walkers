@@ -203,11 +203,21 @@ function handleMapElitesClick(event) {
     if (!globals.mapelites || !globals.mapelites.bins || globals.mapelites.bins.length === 0) {
         return;
     }
+    const bins = globals.mapelites.bins;
     const canvas = globals.mapelites_canvas;
+    const canvasWidth = canvas.width;
     const rect = canvas.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
-    const binWidth = canvas.width / globals.mapelites.bins.length;
-    const clickedBinIndex = Math.floor(clickX / binWidth);
+    let clickedBinIndex = -1;
+    for (let i = 0; i < bins.length; i++) {
+        const bin = bins[i];
+        const startX = canvasWidth * bin.low;
+        const endX = canvasWidth * bin.high;
+        if (clickX >= startX && clickX < endX) {
+            clickedBinIndex = i;
+            break;
+        }
+    }
     if (clickedBinIndex >= 0 && clickedBinIndex < globals.mapelites.bins.length) {
         globals.selectedMapElitesBin = clickedBinIndex;
         const selectedBin = globals.mapelites.bins[clickedBinIndex];
