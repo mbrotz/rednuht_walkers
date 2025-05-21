@@ -4,15 +4,20 @@
     render_fps: 60,
     velocity_iterations: 8,
     position_iterations: 3,
-    max_zoom_factor: 130,
     max_floor_tiles: 200,
 
     mutation_chance: 1,
     mutation_amount: 0.05,
 
+    camera_start_x: 0,
+    camera_start_y: 280,
+    camera_max_zoom_factor: 130,
+
+    walkers_origin_x: 0.425,
+
     population_size: 40,
     history_size: 40,
-    
+
     mapelites_height_bins: 60,
     mapelites_threshold: 0.2,
     mapelites_range_decay: 0.98,

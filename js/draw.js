@@ -1,231 +1,23 @@
 ﻿
-drawInit = function() {
-    globals.sim_canvas = document.getElementById("sim_canvas");
-    globals.sim_ctx = sim_canvas.getContext("2d");
-    globals.mapelites_canvas = document.getElementById("mapelites_canvas");
-    globals.mapelites_ctx = globals.mapelites_canvas.getContext("2d");
-    globals.genepool_canvas = document.getElementById("genepool_canvas");
-    globals.genepool_ctx = globals.genepool_canvas.getContext("2d");
-    resetCamera();
+let Camera = function() {
+    this.__constructor.apply(this, arguments);
 }
 
-resetCamera = function() {
-    globals.zoom = config.max_zoom_factor;
-    globals.translate_x = 0;
-    globals.translate_y = 280;
+Camera.prototype.__constructor = function(config) {
+    this.start_x = config.camera_start_x;
+    this.start_y = config.camera_start_y;
+    this.max_zoom_factor = config.camera_max_zoom_factor;
+    this.reset();
 }
 
-drawFrame = function() {
-    let minmax = getMinMaxDistance();
-    globals.target_zoom = Math.min(config.max_zoom_factor, getZoom(minmax.min_x, minmax.max_x + 4, minmax.min_y + 2, minmax.max_y + 2.5));
-    globals.zoom += 0.1*(globals.target_zoom - globals.zoom);
-    globals.translate_x += 0.1*(1.5-minmax.min_x - globals.translate_x);
-    globals.translate_y += 0.3*(minmax.min_y*globals.zoom + 280 - globals.translate_y);
-
-    globals.sim_ctx.clearRect(0, 0, globals.sim_canvas.width, globals.sim_canvas.height);
-    globals.sim_ctx.save();
-    globals.sim_ctx.translate(globals.translate_x*globals.zoom, globals.translate_y);
-    globals.sim_ctx.scale(globals.zoom, -globals.zoom);
-    drawFloor();
-    for (let k = globals.population.walkers.length - 1; k >= 0 ; k--) {
-        let walker = globals.population.walkers[k];
-        if (walker && !walker.is_eliminated) {
-            drawWalker(walker);
-        }
-    }
-    globals.sim_ctx.restore();
-    drawDistanceIndicator();
-    drawMapElites();
-    drawGenePool();
-}
-
-drawDistanceIndicator = function() {
-    let ctx = globals.sim_ctx;
-    let canvasWidth = globals.sim_canvas.width;
-    let canvasHeight = globals.sim_canvas.height;
-
-    // --- Define indicator visual parameters ---
-    let indicatorYPosition = canvasHeight - 25; // Y position of the baseline of the ruler
-    let majorTickHeight = 8;
-    let minorTickHeight = 4;
-    let textColor = "#666";
-    let lineColor = "#777";
-    let labelOffsetY = 12; // Vertical offset for labels from the baseline
-
-    ctx.save(); // Save current context state
-
-    // --- 1. Determine Visible World X-Range ---
-    // Note: globals.translate_x is the screen offset for world origin X=0.
-    // globals.zoom is pixels per world unit.
-    let canvasLeftWorldX = -globals.translate_x / globals.zoom;
-    let canvasRightWorldX = (canvasWidth - globals.translate_x) / globals.zoom;
-    let visibleWorldWidth = canvasRightWorldX - canvasLeftWorldX;
-
-    if (visibleWorldWidth <= 0) { // Should not happen if zoom is positive
-        ctx.restore();
-        return;
-    }
-
-    // --- 2. Choose an Appropriate Major Tick Interval ---
-    let desiredMajorTicksOnScreen = Math.max(3, Math.min(10, canvasWidth / 75)); // Aim for 3-10 major ticks, or one every ~75px
-    let roughMajorInterval = visibleWorldWidth / desiredMajorTicksOnScreen;
-    
-    let majorTickWorldDistance;
-    if (roughMajorInterval === 0) { // Avoid log(0)
-        majorTickWorldDistance = 1;
-    } else {
-        let exponent = Math.floor(Math.log10(roughMajorInterval));
-        let powerOf10 = Math.pow(10, exponent);
-        let normalizedInterval = roughMajorInterval / powerOf10;
-
-        if (normalizedInterval < 1.5)      majorTickWorldDistance = 1 * powerOf10;
-        else if (normalizedInterval < 3.5) majorTickWorldDistance = 2 * powerOf10;
-        else if (normalizedInterval < 7.5) majorTickWorldDistance = 5 * powerOf10;
-        else                               majorTickWorldDistance = 10 * powerOf10;
-    }
-    
-    // Sanity check for very small/large intervals
-    if (majorTickWorldDistance <= 0) majorTickWorldDistance = 1; // Fallback
-    // Prevent extremely small intervals if super zoomed in and visibleWorldWidth is tiny
-    let minSensibleInterval = 0.001; // Example: don't show ticks for 0.0001
-    if (majorTickWorldDistance < minSensibleInterval && visibleWorldWidth < minSensibleInterval * desiredMajorTicksOnScreen) {
-        majorTickWorldDistance = minSensibleInterval;
-    }
-
-    // --- 3. Calculate Minor Tick Interval ---
-    let numMinorSubdivisions = 5; // e.g., 4 minor ticks create 5 segments between major ticks
-    let minorTickWorldDistance = majorTickWorldDistance / numMinorSubdivisions;
-
-    // --- Draw baseline (Optional - can be useful for alignment) ---
-     ctx.beginPath();
-     ctx.moveTo(0, indicatorYPosition);
-     ctx.lineTo(canvasWidth, indicatorYPosition);
-     ctx.strokeStyle = lineColor;
-     ctx.lineWidth = 0.5;
-     ctx.stroke();
-
-    // --- 4. & 5. Iterate and Draw Ticks ---
-    ctx.strokeStyle = lineColor;
-    ctx.fillStyle = textColor;
-    ctx.font = "10px sans-serif";
-    ctx.textAlign = "center";
-    ctx.lineWidth = 1;
-
-    // Determine starting points for iteration to cover the visible range
-    let firstMajorTickWorldX = Math.ceil(canvasLeftWorldX / majorTickWorldDistance) * majorTickWorldDistance;
-    let firstMinorTickWorldX = Math.ceil(canvasLeftWorldX / minorTickWorldDistance) * minorTickWorldDistance;
-
-    // Draw Major Ticks and Labels
-    for (let worldX = firstMajorTickWorldX; worldX <= canvasRightWorldX + majorTickWorldDistance; worldX += majorTickWorldDistance) {
-        let screenX = Math.round(worldX * globals.zoom + globals.translate_x); 
-        
-        // Only draw if tick is reasonably within canvas bounds
-        if (screenX < -majorTickHeight || screenX > canvasWidth + majorTickHeight) continue;
-
-        ctx.beginPath();
-        ctx.moveTo(screenX, indicatorYPosition);
-        ctx.lineTo(screenX, indicatorYPosition - majorTickHeight);
-        ctx.stroke();
-
-        let precision = 0;
-        if (majorTickWorldDistance < 0.1) precision = 3;
-        else if (majorTickWorldDistance < 1) precision = 2;
-        else if (majorTickWorldDistance < 10) precision = 1;
-        
-        // Avoid label collision by checking screen distance (simple check)
-        // More sophisticated label management is complex, this is a basic approach.
-        // We'll draw all for now, the dynamic interval should help.
-        ctx.fillText(worldX.toFixed(Math.max(0, precision - 1)), screenX, indicatorYPosition + labelOffsetY);
-    }
-
-    // Draw Minor Ticks
-    for (let worldX = firstMinorTickWorldX; worldX <= canvasRightWorldX + minorTickWorldDistance; worldX += minorTickWorldDistance) {
-        // Avoid drawing a minor tick if it's (practically) at the same location as a major tick
-        // Check with a small epsilon due to floating point arithmetic
-        let isMajorTickLocation = false;
-        if (majorTickWorldDistance > 0) { // Avoid division by zero if majorTickWorldDistance somehow became 0
-             const remainder = worldX % majorTickWorldDistance;
-             const epsilon = minorTickWorldDistance * 0.01; // A small fraction of minor tick distance
-             if (Math.abs(remainder) < epsilon || Math.abs(remainder - majorTickWorldDistance) < epsilon) {
-                 isMajorTickLocation = true;
-             }
-        }
-
-
-        if (isMajorTickLocation) {
-            continue;
-        }
-        
-        let screenX = Math.round(worldX * globals.zoom + globals.translate_x);
-        if (screenX < -minorTickHeight || screenX > canvasWidth + minorTickHeight) continue;
-
-        ctx.beginPath();
-        ctx.moveTo(screenX, indicatorYPosition);
-        ctx.lineTo(screenX, indicatorYPosition - minorTickHeight);
-        ctx.stroke();
-    }
-    ctx.restore(); // Restore context state
-}
-
-drawFloor = function() {
-    globals.sim_ctx.strokeStyle = "#444";
-    globals.sim_ctx.lineWidth = 1/globals.zoom;
-    globals.sim_ctx.beginPath();
-    let floor_fixture = globals.floor.GetFixtureList();
-    globals.sim_ctx.moveTo(floor_fixture.m_shape.m_vertices[0].x, floor_fixture.m_shape.m_vertices[0].y);
-    for (let k = 1; k < floor_fixture.m_shape.m_vertices.length; k++) {
-        globals.sim_ctx.lineTo(floor_fixture.m_shape.m_vertices[k].x, floor_fixture.m_shape.m_vertices[k].y);
-    }
-    globals.sim_ctx.stroke();
-}
-
-drawWalker = function(walker) {
-    let pressure_line_distance = walker.getPressureLineDistance();
-    let normalized_distance = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
-    let brightness_factor = 40 + 50 * normalized_distance;
-    let saturation_factor = 30 + 40 * normalized_distance;
-    globals.sim_ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
-    globals.sim_ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";
-    globals.sim_ctx.lineWidth = 1/globals.zoom;
-    drawRect(walker.left_arm.lower_arm);
-    drawRect(walker.left_arm.upper_arm);
-    drawRect(walker.left_leg.foot);
-    drawRect(walker.left_leg.lower_leg);
-    drawRect(walker.left_leg.upper_leg);
-    drawRect(walker.head.neck);
-    drawRect(walker.head.head);
-    drawRect(walker.torso.lower_torso);
-    drawRect(walker.torso.upper_torso);
-    drawRect(walker.right_leg.upper_leg);
-    drawRect(walker.right_leg.lower_leg);
-    drawRect(walker.right_leg.foot);
-    drawRect(walker.right_arm.upper_arm);
-    drawRect(walker.right_arm.lower_arm);
-}
-
-drawRect = function(body) {
-    globals.sim_ctx.beginPath();
-    let fixture = body.GetFixtureList();
-    let shape = fixture.GetShape();
-    let p0 = body.GetWorldPoint(shape.m_vertices[0]);
-    globals.sim_ctx.moveTo(p0.x, p0.y);
-    for (let k = 1; k < 4; k++) {
-        let p = body.GetWorldPoint(shape.m_vertices[k]);
-        globals.sim_ctx.lineTo(p.x, p.y);
-    }
-    globals.sim_ctx.lineTo(p0.x, p0.y);
-    globals.sim_ctx.fill();
-    globals.sim_ctx.stroke();
-}
-
-getMinMaxDistance = function() {
+Camera.prototype._calculateMinMax = function(walkers) {
     let min_x = 9999;
-    let max_x = -1;
+    let max_x = -9999;
     let min_y = 9999;
-    let max_y = -1;
+    let max_y = -9999;
     let activeWalkerFound = false;
-    for (let k = 0; k < globals.population.walkers.length; k++) {
-        let walker = globals.population.walkers[k];
+    for (let k = 0; k < walkers.length; k++) {
+        let walker = walkers[k];
         if (walker && !walker.is_eliminated) {
             activeWalkerFound = true;
             let dist = walker.torso.upper_torso.GetPosition();
@@ -237,20 +29,355 @@ getMinMaxDistance = function() {
             max_y = Math.max(max_y, dist.y, current_head_y_for_zoom);
         }
     }
-    if (!activeWalkerFound) {
-        min_x = 0; max_x = 1; min_y = 0; max_y = 1;
+    if (activeWalkerFound) {
+        return {min_x: min_x, max_x: max_x, min_y: min_y, max_y: max_y};
     }
-    return {min_x:min_x, max_x:max_x, min_y:min_y, max_y:max_y};
+    return {min_x: 0, max_x: 1, min_y: 0, max_y: 1};
 }
 
-getZoom = function(min_x, max_x, min_y, max_y) {
+Camera.prototype._calculateZoom = function(width, height, min_x, max_x, min_y, max_y) {
     let delta_x = Math.abs(max_x - min_x);
     let delta_y = Math.abs(max_y - min_y);
     if (delta_x === 0) delta_x = 1;
     if (delta_y === 0) delta_y = 1;
-    let zoom = Math.min(globals.sim_canvas.width/delta_x,globals.sim_canvas.height/delta_y);
-    return zoom;
+    return Math.min(width / delta_x, height / delta_y);
 }
+
+Camera.prototype._calculateTargetZoom = function(canvas, minmax) {
+    let zoom = this._calculateZoom(canvas.width, canvas.height, minmax.min_x, minmax.max_x + 4, minmax.min_y + 2, minmax.max_y + 2.5);
+    return Math.max(1.0, Math.min(this.max_zoom_factor, zoom));
+}
+
+Camera.prototype.worldToScreenX = function(world_x) {
+    return (this.translate_x + world_x) * this.zoom;
+}
+
+Camera.prototype.worldToScreenY = function(world_y) {
+    return this.translate_y - (world_y * this.zoom);
+}
+
+Camera.prototype.screenToWorldX = function(screen_x) {
+    if (this.zoom <= 0) return screen_x;
+    return (screen_x / this.zoom) - this.translate_x;
+}
+
+Camera.prototype.screenToWorldY = function(screen_y) {
+    if (this.zoom <= 0) return screen_y;
+    return (this.translate_y - screen_y) / this.zoom;
+}
+
+Camera.prototype.worldToScreenWidth = function(world_width) {
+    return world_width * this.zoom;
+}
+
+Camera.prototype.worldToScreenHeight = function(world_height) {
+    return world_height * this.zoom;
+}
+
+Camera.prototype.screenToWorldWidth = function(screen_width) {
+    if (this.zoom === 0) return screen_width;
+    return screen_width / this.zoom;
+}
+
+Camera.prototype.screenToWorldHeight = function(screen_height) {
+    if (this.zoom === 0) return screen_height;
+    return screen_height / this.zoom;
+}
+
+Camera.prototype.reset = function() {
+    this.zoom = this.max_zoom_factor;
+    this.target_zoom = this.max_zoom_factor;
+    this.translate_x = this.start_x;
+    this.translate_y = this.start_y;
+}
+
+Camera.prototype.update = function(canvas, walkers) {
+    let minmax = this._calculateMinMax(walkers);
+    this.target_zoom = this._calculateTargetZoom(canvas, minmax);
+    this.zoom += 0.1 * (this.target_zoom - this.zoom);
+    this.translate_x += 0.1 * (1.5 - minmax.min_x - this.translate_x);
+    this.translate_y += 0.3 * (minmax.min_y * this.zoom + this.start_y - this.translate_y);
+}
+
+Camera.prototype.apply = function(context) {
+    context.translate(this.translate_x * this.zoom, this.translate_y);
+    context.scale(this.zoom, -this.zoom);
+}
+
+drawInit = function() {
+    globals.sim_canvas = document.getElementById("sim_canvas");
+    globals.sim_ctx = sim_canvas.getContext("2d");
+    globals.mapelites_canvas = document.getElementById("mapelites_canvas");
+    globals.mapelites_ctx = globals.mapelites_canvas.getContext("2d");
+    globals.genepool_canvas = document.getElementById("genepool_canvas");
+    globals.genepool_ctx = globals.genepool_canvas.getContext("2d");
+    globals.camera = new Camera(config);
+}
+
+drawFrame = function() {
+    drawActualFrame(globals.camera, globals.sim_canvas, globals.sim_ctx, config.walkers_origin_x, globals.floor, globals.population.walkers);
+}
+
+drawActualFrame = function(camera, canvas, ctx, walkers_origin_x, floor, walkers) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+
+    camera.update(canvas, walkers);
+    camera.apply(ctx);
+
+    drawFloor(camera, ctx, floor);
+    drawWalkersOriginIndicator(ctx, walkers_origin_x, floor);
+    drawWalkers(camera, ctx, walkers);
+    drawRuler(camera, canvas, ctx, walkers_origin_x, floor);
+
+    ctx.restore();
+
+    drawMapElites();
+    drawGenePool();
+}
+
+drawFloor = function(camera, ctx, floor) {
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = camera.screenToWorldWidth(1);
+    ctx.beginPath();
+    let floor_fixture = floor.GetFixtureList();
+    ctx.moveTo(floor_fixture.m_shape.m_vertices[0].x, floor_fixture.m_shape.m_vertices[0].y);
+    for (let k = 1; k < floor_fixture.m_shape.m_vertices.length; k++) {
+        ctx.lineTo(floor_fixture.m_shape.m_vertices[k].x, floor_fixture.m_shape.m_vertices[k].y);
+    }
+    ctx.stroke();
+}
+
+drawBodyPart = function(ctx, body) {
+    ctx.beginPath();
+    let fixture = body.GetFixtureList();
+    let shape = fixture.GetShape();
+    let p0 = body.GetWorldPoint(shape.m_vertices[0]);
+    ctx.moveTo(p0.x, p0.y);
+    for (let k = 1; k < 4; k++) {
+        let p = body.GetWorldPoint(shape.m_vertices[k]);
+        ctx.lineTo(p.x, p.y);
+    }
+    ctx.lineTo(p0.x, p0.y);
+    ctx.fill();
+    ctx.stroke();
+}
+
+drawWalker = function(camera, ctx, walker) {
+    let pressure_line_distance = walker.getPressureLineDistance();
+    let normalized_distance = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
+    let brightness_factor = 40 + 50 * normalized_distance;
+    let saturation_factor = 30 + 40 * normalized_distance;
+    ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
+    ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";
+    ctx.lineWidth = camera.screenToWorldWidth(1);;
+    drawBodyPart(ctx, walker.left_arm.lower_arm);
+    drawBodyPart(ctx, walker.left_arm.upper_arm);
+    drawBodyPart(ctx, walker.left_leg.foot);
+    drawBodyPart(ctx, walker.left_leg.lower_leg);
+    drawBodyPart(ctx, walker.left_leg.upper_leg);
+    drawBodyPart(ctx, walker.head.neck);
+    drawBodyPart(ctx, walker.head.head);
+    drawBodyPart(ctx, walker.torso.lower_torso);
+    drawBodyPart(ctx, walker.torso.upper_torso);
+    drawBodyPart(ctx, walker.right_leg.upper_leg);
+    drawBodyPart(ctx, walker.right_leg.lower_leg);
+    drawBodyPart(ctx, walker.right_leg.foot);
+    drawBodyPart(ctx, walker.right_arm.upper_arm);
+    drawBodyPart(ctx, walker.right_arm.lower_arm);
+}
+
+drawWalkers = function(camera, ctx, walkers) {
+    for (let k = walkers.length - 1; k >= 0 ; k--) {
+        let walker = walkers[k];
+        if (walker && !walker.is_eliminated) {
+            drawWalker(camera, ctx, walker);
+        }
+    }
+}
+
+drawWalkersOriginIndicator = function(ctx, walkers_origin_x, floor) {
+    let floor_y = floor.GetFixtureList().m_shape.m_vertices[0].y;
+    ctx.strokeStyle = "#000";
+    ctx.beginPath();
+    ctx.moveTo(walkers_origin_x, floor_y);
+    ctx.lineTo(walkers_origin_x, floor_y - 0.1);
+    ctx.stroke();
+}
+
+drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
+    // --- Ruler Visual Parameters (in screen units, will be converted to world units) ---
+    const RULER_MAIN_COLOR = "#666";
+    const RULER_FADED_COLOR = "#AAA"; // For negative ticks/labels relative to walkers_origin_x
+    const RULER_BASELINE_LINE_WIDTH_SCREEN = 1;
+    const RULER_TICK_LINE_WIDTH_SCREEN = 1;
+
+    // Vertical positioning: Try to center the ruler in the available space below the floor
+    const RULER_VERTICAL_PADDING_SCREEN = 5; // Min padding from canvas bottom & floor
+    const MIN_RULER_AREA_HEIGHT_SCREEN = 30; // Ensure ruler has some space
+
+    const MAJOR_TICK_HEIGHT_SCREEN = 8;
+    const MINOR_TICK_HEIGHT_SCREEN = 4;
+    const FONT_SIZE_SCREEN = 10;
+    // Gap between the ruler baseline and the top of the text labels
+    const LABEL_OFFSET_FROM_BASELINE_SCREEN = 10;
+
+
+    // --- 1. Calculate Y Positions ---
+    let floor_y_world = floor.GetFixtureList().m_shape.m_vertices[0].y;
+    let floor_y_screen = camera.worldToScreenY(floor_y_world);
+
+    // Define the screen space available for the ruler
+    let ruler_area_top_screen = floor_y_screen + RULER_VERTICAL_PADDING_SCREEN;
+    let ruler_area_bottom_screen = canvas.height - RULER_VERTICAL_PADDING_SCREEN;
+
+    // If not enough space, fallback to a fixed position or don't draw
+    if (ruler_area_bottom_screen - ruler_area_top_screen < MIN_RULER_AREA_HEIGHT_SCREEN) {
+        // Fallback: position ruler at a fixed distance from bottom if space is too small
+        ruler_area_bottom_screen = canvas.height - RULER_VERTICAL_PADDING_SCREEN;
+        ruler_area_top_screen = ruler_area_bottom_screen - MIN_RULER_AREA_HEIGHT_SCREEN;
+        if (ruler_area_top_screen < floor_y_screen + RULER_VERTICAL_PADDING_SCREEN) {
+             // still not enough, or overlapping with floor view, maybe don't draw or clamp
+             ruler_area_top_screen = floor_y_screen + RULER_VERTICAL_PADDING_SCREEN;
+             if (ruler_area_bottom_screen <= ruler_area_top_screen) return; // Cannot draw
+        }
+    }
+
+    // The baseline is where ticks start. Labels are below it. Ticks go up.
+    // Let's place the baseline such that there's space for labels below it and ticks above it.
+    // Baseline will be 'LABEL_OFFSET_FROM_BASELINE_SCREEN + FONT_SIZE_SCREEN' from the bottom of text.
+    // And 'MAJOR_TICK_HEIGHT_SCREEN' from the top of major ticks.
+    // Total height needed: MAJOR_TICK_HEIGHT_SCREEN + LABEL_OFFSET_FROM_BASELINE_SCREEN + FONT_SIZE_SCREEN
+    // Center this block within ruler_area_top_screen and ruler_area_bottom_screen
+    let ruler_content_height_screen = MAJOR_TICK_HEIGHT_SCREEN + LABEL_OFFSET_FROM_BASELINE_SCREEN + FONT_SIZE_SCREEN;
+    let ruler_center_y_screen = ruler_area_top_screen + (ruler_area_bottom_screen - ruler_area_top_screen) / 2;
+
+    let ruler_baseline_y_screen = ruler_center_y_screen + (ruler_content_height_screen / 2) - FONT_SIZE_SCREEN - LABEL_OFFSET_FROM_BASELINE_SCREEN;
+
+    // Convert screen Y positions and dimensions to world units
+    let ruler_baseline_world_y = camera.screenToWorldY(ruler_baseline_y_screen);
+    let major_tick_height_world = camera.screenToWorldHeight(MAJOR_TICK_HEIGHT_SCREEN);
+    let minor_tick_height_world = camera.screenToWorldHeight(MINOR_TICK_HEIGHT_SCREEN);
+
+    // Y position for the top of the text labels (textBaseline = "top")
+    let label_text_y_screen = ruler_baseline_y_screen + LABEL_OFFSET_FROM_BASELINE_SCREEN;
+    let label_text_y_world = camera.screenToWorldY(label_text_y_screen);
+
+
+    // --- 2. Calculate X Extents (World) ---
+    // Extend slightly beyond screen edges to ensure ticks at edges are fully drawn
+    const screen_edge_buffer_px = 20;
+    let world_left_edge = camera.screenToWorldX(0 - screen_edge_buffer_px);
+    let world_right_edge = camera.screenToWorldX(canvas.width + screen_edge_buffer_px);
+    let visible_world_width = world_right_edge - world_left_edge;
+
+    if (visible_world_width <= 0 || camera.zoom <= 0) {
+        return; // Invalid state
+    }
+
+    // --- 3. Determine Tick Intervals (World Units) ---
+    let desired_major_ticks_on_screen = Math.max(3, Math.min(10, canvas.width / 80)); // Aim for one major tick every ~80px
+    let rough_major_interval_world = visible_world_width / desired_major_ticks_on_screen;
+    let major_tick_world_distance;
+
+    if (rough_major_interval_world <= 1e-9) { // Avoid log(0) or extremely small values
+        major_tick_world_distance = 1; // Default fallback
+    } else {
+        let exponent = Math.floor(Math.log10(rough_major_interval_world));
+        let powerOf10 = Math.pow(10, exponent);
+        let normalizedInterval = rough_major_interval_world / powerOf10;
+
+        if (normalizedInterval < 1.5)      major_tick_world_distance = 1 * powerOf10;
+        else if (normalizedInterval < 3.5) major_tick_world_distance = 2 * powerOf10;
+        else if (normalizedInterval < 7.5) major_tick_world_distance = 5 * powerOf10;
+        else                               major_tick_world_distance = 10 * powerOf10;
+    }
+
+    const min_sensible_world_interval = 1e-4; // Prevent overly dense ticks if highly zoomed
+    if (major_tick_world_distance < min_sensible_world_interval) {
+        major_tick_world_distance = min_sensible_world_interval;
+    }
+    if (major_tick_world_distance <= 1e-9) major_tick_world_distance = 0.1; // Final fallback
+
+    const num_minor_subdivisions = 5;
+    let minor_tick_world_distance = major_tick_world_distance / num_minor_subdivisions;
+    const epsilon = minor_tick_world_distance * 0.01; // For floating point comparisons
+
+    // --- 4. Setup Drawing Styles ---
+    // (Assumes ctx is already transformed by camera.apply())
+    const baseline_line_width_world = camera.screenToWorldWidth(RULER_BASELINE_LINE_WIDTH_SCREEN);
+    const tick_line_width_world = camera.screenToWorldWidth(RULER_TICK_LINE_WIDTH_SCREEN);
+    const font_size_world = camera.screenToWorldHeight(FONT_SIZE_SCREEN); // Equivalent to FONT_SIZE_SCREEN / camera.zoom
+
+    ctx.font = font_size_world + "px sans-serif";
+    ctx.textAlign = "center";
+
+    // --- 5. Draw Ruler Baseline ---
+    ctx.strokeStyle = RULER_MAIN_COLOR;
+    ctx.lineWidth = baseline_line_width_world;
+    ctx.beginPath();
+    // Draw baseline from actual screen edge to screen edge in world coords
+    ctx.moveTo(camera.screenToWorldX(0), ruler_baseline_world_y);
+    ctx.lineTo(camera.screenToWorldX(canvas.width), ruler_baseline_world_y);
+    ctx.stroke();
+
+    // --- 6. Draw Ticks and Labels ---
+    // Determine the first tick offset that could be visible
+    // Offset is relative to walkers_origin_x
+    let first_tick_offset_world = Math.floor((world_left_edge - walkers_origin_x) / minor_tick_world_distance) * minor_tick_world_distance;
+
+    for (let offset = first_tick_offset_world; ; offset += minor_tick_world_distance) {
+        let current_tick_world_x = walkers_origin_x + offset;
+        if (current_tick_world_x > world_right_edge) {
+            break; // Past the visible range (plus buffer)
+        }
+        if (current_tick_world_x < world_left_edge && Math.abs(offset) > major_tick_world_distance*2) { // Optimization: skip if far left
+             if (offset > 0 && walkers_origin_x + offset + major_tick_world_distance < world_left_edge) { // speed up for positive offsets
+                offset = Math.ceil((world_left_edge - walkers_origin_x) / minor_tick_world_distance -1) * minor_tick_world_distance ;
+                continue;
+            }
+        }
+
+        const is_major_tick = Math.abs(offset % major_tick_world_distance) < epsilon || Math.abs(offset % major_tick_world_distance - major_tick_world_distance) < epsilon || Math.abs(offset % major_tick_world_distance + major_tick_world_distance) < epsilon;
+        const is_zero_tick_label = Math.abs(offset) < epsilon; // This is the "0" label at walkers_origin_x
+
+        let tick_height_world = is_major_tick ? major_tick_height_world : minor_tick_height_world;
+
+        // Negative ticks/labels (to the left of walkers_origin_x) are faded
+        const color = (offset < -epsilon && !is_zero_tick_label) ? RULER_FADED_COLOR : RULER_MAIN_COLOR;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = tick_line_width_world;
+
+        ctx.beginPath();
+        ctx.moveTo(current_tick_world_x, ruler_baseline_world_y);
+        // Ticks go UP from the baseline (positive Y in world, up on screen due to camera's -zoom_y)
+        ctx.lineTo(current_tick_world_x, ruler_baseline_world_y + tick_height_world);
+        ctx.stroke();
+
+        if (is_major_tick) {
+            ctx.fillStyle = color;
+            let labelText;
+            if (is_zero_tick_label) {
+                labelText = "0";
+            } else {
+                let precision = 0;
+                const absOffset = Math.abs(offset);
+                // finer precision for very small intervals/offsets
+                if (major_tick_world_distance < 0.015 || (absOffset > epsilon && absOffset < 0.015)) precision = 3;
+                else if (major_tick_world_distance < 0.15 || (absOffset > epsilon && absOffset < 0.15)) precision = 2;
+                else if (major_tick_world_distance < 1.5 || (absOffset > epsilon && absOffset < 1.5)) precision = 1;
+                else if (major_tick_world_distance < 15 || (absOffset > epsilon && absOffset < 15)) precision = 0;
+                labelText = offset.toFixed(precision);
+            }
+            ctx.save();
+            ctx.translate(current_tick_world_x, label_text_y_world);
+            ctx.scale(1, -1);
+            ctx.fillText(labelText, 0, 0);
+            ctx.restore();
+        }
+    }
+};
 
 drawMapElites = function() {
     if (!globals.mapelites_ctx || !globals.mapelites) {
@@ -261,7 +388,6 @@ drawMapElites = function() {
     let canvasWidth = canvas.width;
     let canvasHeight = canvas.height;
     context.clearRect(0, 0, canvasWidth, canvasHeight);
-    
     const bins = globals.mapelites.bins;
     if (!bins || bins.length === 0) {
         context.fillStyle = "#eee";
@@ -274,7 +400,6 @@ drawMapElites = function() {
         context.fillText("MAP-Elites Archive Empty", canvasWidth / 2, canvasHeight / 2 + 4);
         return;
     }
-
     const range = globals.mapelites.range;
     if (range <= 0) {
         context.fillStyle = "#ddd";
@@ -287,24 +412,18 @@ drawMapElites = function() {
         context.fillText("Map Elites Range Too Small", canvasWidth / 2, canvasHeight / 2 + 4);
         return;
     }
-
     let maxRecordScoreOverall = 0;
-
-    // Find the maximum record score across all bins for normalization
     for (let i = 0; i < bins.length; i++) {
         if (bins[i] && bins[i].genepool && bins[i].genepool.history) {
             maxRecordScoreOverall = Math.max(maxRecordScoreOverall, bins[i].genepool.history.record_score);
         }
     }
-
-    // Draw each bin
     const threshold = globals.mapelites.threshold;
     for (let i = 0; i < bins.length; i++) {
         const bin = bins[i];
         const x_start = canvasWidth * (bin.low - threshold);
         const x_end = canvasWidth * (bin.high - threshold);
         const binWidth = x_end - x_start;
-        
         let normalized_score = 0;
         if (bin && bin.genepool && bin.genepool.history) {
             const current_bin_score = bin.genepool.history.record_score;
@@ -312,18 +431,13 @@ drawMapElites = function() {
                 normalized_score = current_bin_score / maxRecordScoreOverall;
             }
         }
-        normalized_score = Math.max(0, Math.min(1, normalized_score)); // Clamp between 0 and 1
-
-        // Color: White for low score (0), Black for high score (1)
+        normalized_score = Math.max(0, Math.min(1, normalized_score));
         const gray_value = Math.floor(255 * (1 - normalized_score)); 
         context.fillStyle = "rgb(" + gray_value + "," + gray_value + "," + gray_value + ")";
         context.fillRect(x_start, 0, binWidth, canvasHeight);
-
-        // Draw a light border for each bin
         context.strokeStyle = "#bbb"; 
         context.lineWidth = 0.5;
         context.strokeRect(x_start, 0, binWidth, canvasHeight);
-
         if (!bin.enabled) {
             context.strokeStyle = "red";
             context.lineWidth = 2;
@@ -332,11 +446,9 @@ drawMapElites = function() {
             context.lineTo(x_end, canvasHeight);
             context.moveTo(x_end, 0);
             context.lineTo(x_start, canvasHeight);
-            context.closePath();
             context.stroke();
         }
     }
-     
     if (globals.selectedMapElitesBin > -1) {
         const bin = bins[globals.selectedMapElitesBin];
         const x_start = canvasWidth * (bin.low - threshold);
