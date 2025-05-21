@@ -303,12 +303,25 @@ drawMapElites = function() {
         // Color: White for low score (0), Black for high score (1)
         const gray_value = Math.floor(255 * (1 - normalized_score)); 
         context.fillStyle = "rgb(" + gray_value + "," + gray_value + "," + gray_value + ")";
-        context.fillRect(x_position, 0, binWidth, canvasHeight);
+        context.fillRect(x_position, 0, binWidth + 2, canvasHeight);
 
         // Draw a light border for each bin
         context.strokeStyle = "#bbb"; 
         context.lineWidth = 0.5;
         context.strokeRect(x_position, 0, binWidth, canvasHeight);
+        
+        if (!bin.enabled) {
+            context.strokeStyle = "red";
+            context.lineWidth = 2;
+            const x_end = canvasWidth * bin.high;
+            context.beginPath();
+            context.moveTo(x_position, 0);
+            context.lineTo(x_end, canvasHeight);
+            context.moveTo(x_end, 0);
+            context.lineTo(x_position, canvasHeight);
+            context.closePath();
+            context.stroke();
+        }
     }
 
     // Draw highlight for the selected bin

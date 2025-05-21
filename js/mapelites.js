@@ -13,6 +13,7 @@ MapElites.prototype.__constructor = function(config) {
     for (let i = 0; i < this.num_height_bins; i++) {
         let bin = {
             index: i,
+            enabled: true,
             range: current_range,
             low: 0.0,
             high: 0.0,
@@ -61,7 +62,7 @@ MapElites.prototype._selectEligibleBins = function() {
     let result = []
     for (let i = 0; i < this.bins.length; i++) {
         let bin = this.bins[i];
-        if (!bin.genepool.isEmpty()) {
+        if (bin.enabled && !bin.genepool.isEmpty()) {
             result.push({
                 index: i,
                 bin: bin,

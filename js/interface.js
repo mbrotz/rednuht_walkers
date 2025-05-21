@@ -175,6 +175,9 @@ interfaceSetup = function() {
         globals.mapelites_canvas.addEventListener('click', function(e) { 
             handleMapElitesClick(e); 
         });
+        globals.mapelites_canvas.addEventListener('contextmenu', function(e) { 
+            handleMapElitesRightClick(e); 
+        });
     }
 
     document.body.addEventListener('click', function(event) {
@@ -199,36 +202,6 @@ interfaceSetup = function() {
     });
 }
 
-function handleMapElitesClick(event) {
-    if (!globals.mapelites || !globals.mapelites.bins || globals.mapelites.bins.length === 0) {
-        return;
-    }
-    const bins = globals.mapelites.bins;
-    const canvas = globals.mapelites_canvas;
-    const canvasWidth = canvas.width;
-    const rect = canvas.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    let clickedBinIndex = -1;
-    for (let i = 0; i < bins.length; i++) {
-        const bin = bins[i];
-        const startX = canvasWidth * bin.low;
-        const endX = canvasWidth * bin.high;
-        if (clickX >= startX && clickX < endX) {
-            clickedBinIndex = i;
-            break;
-        }
-    }
-    if (clickedBinIndex >= 0 && clickedBinIndex < globals.mapelites.bins.length) {
-        globals.selectedMapElitesBin = clickedBinIndex;
-        const selectedBin = globals.mapelites.bins[clickedBinIndex];
-        globals.genepool = selectedBin.genepool;
-        globals.history = selectedBin.genepool.history;
-        drawMapElites();
-        drawGenePool();
-        updateHistoryList(true);
-    }
-}
-
 function deselectMapElitesBin() {
     if (globals.selectedMapElitesBin === -1) return;
     globals.selectedMapElitesBin = -1;
@@ -237,4 +210,45 @@ function deselectMapElitesBin() {
     drawMapElites();
     drawGenePool();
     updateHistoryList(true); 
+}
+
+function findClickedMapElitesBin(event) {
+    const bins = globals.mapelites.bins;
+    const canvas = globals.mapelites_canvas;
+    const canvasWidth = canvas.width;
+    const rect = canvas.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    for (let i = 0; i < bins.length; i++) {
+        const bin = bins[i];
+        const startX = canvasWidth * bin.low;
+        const endX = canvasWidth * bin.high;
+        if (clickX >= startX && clickX < endX) {
+            return bins[i];
+        }
+    }
+    return null;
+}
+
+function handleMapElitesClick(event) {
+    if (!globals.mapelites || !globals.mapelites.bins || globals.mapelites.bins.length === 0) {
+        return;
+    }
+    const bin = findClickedMapElitesBin(event);
+    if (bin) {
+        globals.selectedMapElitesBin = bin.index;
+        globals.genepool = bin.genepool;
+        globals.history = bin.genepool.history;
+        drawMapElites();
+        drawGenePool();
+        updateHistoryList(true);
+    }
+}
+
+function handleMapElitesRightClick(event) {
+    event.preventDefault(); // Prevent browser context menu
+    const bin = findClickedMapElitesBin(event);
+    if (bin) {
+        bin.enabled = !bin.enabled;
+        drawMapElites();
+    }
 }
