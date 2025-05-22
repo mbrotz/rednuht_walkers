@@ -1,4 +1,4 @@
-﻿
+
 let GameLoop = function() {
     this.__constructor.apply(this, arguments);
 }

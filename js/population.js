@@ -1,4 +1,4 @@
-﻿
+
 let Population = function() {
     this.__constructor.apply(this, arguments);
 }

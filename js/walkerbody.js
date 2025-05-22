@@ -1,4 +1,4 @@
-﻿
+
 let WalkerBody = function() {
     this.__constructor.apply(this, arguments);
 }

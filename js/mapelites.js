@@ -1,4 +1,4 @@
-﻿
+
 let MapElites = function() {
     this.__constructor.apply(this, arguments);
 }

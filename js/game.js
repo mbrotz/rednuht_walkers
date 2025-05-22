@@ -1,4 +1,4 @@
-﻿
+
 config = {
     time_step: 60,
     simulation_fps: 60,

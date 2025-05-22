@@ -1,4 +1,4 @@
-﻿
+
 let GenePool = function() {
     this.__constructor.apply(this, arguments);
 }

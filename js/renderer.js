@@ -1,4 +1,4 @@
-﻿
+
 let Camera = function() {
     this.__constructor.apply(this, arguments);
 }
