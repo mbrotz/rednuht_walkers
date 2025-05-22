@@ -3,10 +3,11 @@ let WalkerBody = function() {
     this.__constructor.apply(this, arguments);
 }
 
-WalkerBody.prototype.__constructor = function(owner, world, density) {
+WalkerBody.prototype.__constructor = function(owner, world) {
     this.owner = owner;
     this.world = world;
-    this.density = density;
+    
+    this.density = 106.2;
 
     this.bodyDefs = {
         upperTorso: { width : 0.25, height: 0.45 },
