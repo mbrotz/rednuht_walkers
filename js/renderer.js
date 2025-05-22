@@ -3,10 +3,10 @@ let Camera = function() {
     this.__constructor.apply(this, arguments);
 }
 
-Camera.prototype.__constructor = function(config) {
-    this.start_x = config.camera_start_x;
-    this.start_y = config.camera_start_y;
-    this.max_zoom_factor = config.camera_max_zoom_factor;
+Camera.prototype.__constructor = function(cameraConfig) {
+    this.start_x = cameraConfig.camera_start_x;
+    this.start_y = cameraConfig.camera_start_y;
+    this.max_zoom_factor = cameraConfig.camera_max_zoom_factor;
     this.reset();
 }
 
@@ -105,41 +105,59 @@ Camera.prototype.apply = function(context) {
     context.scale(this.zoom, -this.zoom);
 }
 
-drawInit = function() {
-    globals.sim_canvas = document.getElementById("sim_canvas");
-    globals.sim_ctx = sim_canvas.getContext("2d");
-    globals.mapelites_canvas = document.getElementById("mapelites_canvas");
-    globals.mapelites_ctx = globals.mapelites_canvas.getContext("2d");
-    globals.genepool_canvas = document.getElementById("genepool_canvas");
-    globals.genepool_ctx = globals.genepool_canvas.getContext("2d");
-    globals.camera = new Camera(config);
+let Renderer = function() {
+    this.__constructor.apply(this, arguments);
 }
 
-drawFrame = function() {
-    drawActualFrame(globals.camera, globals.sim_canvas, globals.sim_ctx, config.walkers_origin_x, globals.floor, globals.population.walkers);
+Renderer.prototype.__constructor = function(config, interfaceInstance) {
+    this.interface = interfaceInstance;
+
+    this.camera_start_x = config.camera_start_x;
+    this.camera_start_y = config.camera_start_y;
+    this.camera_max_zoom_factor = config.camera_max_zoom_factor;
+    this.walkers_origin_x = config.walkers_origin_x;
+
+    this.simCanvas = this.interface.simCanvasEl;
+    this.simContext = this.simCanvas.getContext("2d");
+    this.mapelitesCanvas = this.interface.mapelitesCanvasEl;
+    this.mapelitesContext = this.mapelitesCanvas.getContext("2d");
+    this.genepoolCanvas = this.interface.genepoolCanvasEl;
+    this.genepoolContext = this.genepoolCanvas.getContext("2d");
+
+    this.camera = new Camera({
+        camera_start_x: this.camera_start_x,
+        camera_start_y: this.camera_start_y,
+        camera_max_zoom_factor: this.camera_max_zoom_factor
+    });
 }
 
-drawActualFrame = function(camera, canvas, ctx, walkers_origin_x, floor, walkers) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
+Renderer.prototype.drawFrame = function() {
 
-    camera.update(canvas, walkers);
-    camera.apply(ctx);
-
-    drawFloor(camera, ctx, floor);
-    drawWalkersOriginIndicator(ctx, walkers_origin_x, floor);
-    drawWalkers(camera, ctx, walkers);
-    drawRuler(camera, canvas, ctx, walkers_origin_x, floor);
-
-    ctx.restore();
-
-    drawMapElites();
-    drawGenePool();
+    this._drawActualFrame(globals.floor, globals.population.walkers);
 }
 
-drawFloor = function(camera, ctx, floor) {
+Renderer.prototype._drawActualFrame = function(floor, walkers) {
+    this.simContext.clearRect(0, 0, this.simCanvas.width, this.simCanvas.height);
+    this.simContext.save();
+
+    this.camera.update(this.simCanvas, walkers);
+    this.camera.apply(this.simContext);
+
+    this._drawFloor(floor);
+    this._drawWalkersOriginIndicator(this.walkers_origin_x, floor);
+    this._drawWalkers(walkers);
+    this._drawRuler(floor);
+
+    this.simContext.restore();
+
+    this._drawMapElites();
+    this._drawGenePool();
+}
+
+Renderer.prototype._drawFloor = function(floor) {
+    const ctx = this.simContext;
     ctx.strokeStyle = "#444";
-    ctx.lineWidth = camera.screenToWorldWidth(1);
+    ctx.lineWidth = this.camera.screenToWorldWidth(1);
     ctx.beginPath();
     let floor_fixture = floor.GetFixtureList();
     ctx.moveTo(floor_fixture.m_shape.m_vertices[0].x, floor_fixture.m_shape.m_vertices[0].y);
@@ -149,7 +167,8 @@ drawFloor = function(camera, ctx, floor) {
     ctx.stroke();
 }
 
-drawBodyPart = function(ctx, body) {
+Renderer.prototype._drawBodyPart = function(body) {
+    const ctx = this.simContext;
     ctx.beginPath();
     let fixture = body.GetFixtureList();
     let shape = fixture.GetShape();
@@ -164,29 +183,31 @@ drawBodyPart = function(ctx, body) {
     ctx.stroke();
 }
 
-drawWalker = function(camera, ctx, walker) {
+Renderer.prototype._drawWalker = function(walker) {
+    const ctx = this.simContext;
     let pressure_line_distance = walker.getPressureLineDistance();
     let normalized_distance = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
     let brightness_factor = 40 + 50 * normalized_distance;
     let saturation_factor = 30 + 40 * normalized_distance;
     ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
     ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";
-    ctx.lineWidth = camera.screenToWorldWidth(1);
+    ctx.lineWidth = this.camera.screenToWorldWidth(1);
     for (let i = 0; i < walker.body.bodies.length; i++) {
-        drawBodyPart(ctx, walker.body.bodies[i]);
+        this._drawBodyPart(walker.body.bodies[i]);
     }
 }
 
-drawWalkers = function(camera, ctx, walkers) {
+Renderer.prototype._drawWalkers = function(walkers) {
     for (let k = walkers.length - 1; k >= 0 ; k--) {
         let walker = walkers[k];
         if (walker && !walker.is_eliminated) {
-            drawWalker(camera, ctx, walker);
+            this._drawWalker(walker);
         }
     }
 }
 
-drawWalkersOriginIndicator = function(ctx, walkers_origin_x, floor) {
+Renderer.prototype._drawWalkersOriginIndicator = function(walkers_origin_x, floor) {
+    const ctx = this.simContext;
     let floor_y = floor.GetFixtureList().m_shape.m_vertices[0].y;
     ctx.strokeStyle = "#000";
     ctx.beginPath();
@@ -195,7 +216,11 @@ drawWalkersOriginIndicator = function(ctx, walkers_origin_x, floor) {
     ctx.stroke();
 }
 
-drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
+Renderer.prototype._drawRuler = function(floor) {
+    const ctx = this.simContext;
+    const canvas = this.simCanvas;
+    const camera = this.camera;
+    const walkers_origin_x = this.walkers_origin_x;
 
     const RULER_MAIN_COLOR = "#666";
     const RULER_FADED_COLOR = "#AAA";
@@ -218,11 +243,9 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
     let ruler_area_bottom_screen = canvas.height - RULER_VERTICAL_PADDING_SCREEN;
 
     if (ruler_area_bottom_screen - ruler_area_top_screen < MIN_RULER_AREA_HEIGHT_SCREEN) {
-
         ruler_area_bottom_screen = canvas.height - RULER_VERTICAL_PADDING_SCREEN;
         ruler_area_top_screen = ruler_area_bottom_screen - MIN_RULER_AREA_HEIGHT_SCREEN;
         if (ruler_area_top_screen < floor_y_screen + RULER_VERTICAL_PADDING_SCREEN) {
-
              ruler_area_top_screen = floor_y_screen + RULER_VERTICAL_PADDING_SCREEN;
              if (ruler_area_bottom_screen <= ruler_area_top_screen) return;
         }
@@ -230,13 +253,10 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
 
     let ruler_content_height_screen = MAJOR_TICK_HEIGHT_SCREEN + LABEL_OFFSET_FROM_BASELINE_SCREEN + FONT_SIZE_SCREEN;
     let ruler_center_y_screen = ruler_area_top_screen + (ruler_area_bottom_screen - ruler_area_top_screen) / 2;
-
     let ruler_baseline_y_screen = ruler_center_y_screen + (ruler_content_height_screen / 2) - FONT_SIZE_SCREEN - LABEL_OFFSET_FROM_BASELINE_SCREEN;
-
     let ruler_baseline_world_y = camera.screenToWorldY(ruler_baseline_y_screen);
     let major_tick_height_world = camera.screenToWorldHeight(MAJOR_TICK_HEIGHT_SCREEN);
     let minor_tick_height_world = camera.screenToWorldHeight(MINOR_TICK_HEIGHT_SCREEN);
-
     let label_text_y_screen = ruler_baseline_y_screen + LABEL_OFFSET_FROM_BASELINE_SCREEN;
     let label_text_y_world = camera.screenToWorldY(label_text_y_screen);
 
@@ -282,11 +302,9 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
 
     ctx.font = font_size_world + "px sans-serif";
     ctx.textAlign = "center";
-
     ctx.strokeStyle = RULER_MAIN_COLOR;
     ctx.lineWidth = baseline_line_width_world;
     ctx.beginPath();
-
     ctx.moveTo(camera.screenToWorldX(0), ruler_baseline_world_y);
     ctx.lineTo(camera.screenToWorldX(canvas.width), ruler_baseline_world_y);
     ctx.stroke();
@@ -307,17 +325,13 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
 
         const is_major_tick = Math.abs(offset % major_tick_world_distance) < epsilon || Math.abs(offset % major_tick_world_distance - major_tick_world_distance) < epsilon || Math.abs(offset % major_tick_world_distance + major_tick_world_distance) < epsilon;
         const is_zero_tick_label = Math.abs(offset) < epsilon;
-
         let tick_height_world = is_major_tick ? major_tick_height_world : minor_tick_height_world;
-
         const color = (offset < -epsilon && !is_zero_tick_label) ? RULER_FADED_COLOR : RULER_MAIN_COLOR;
 
         ctx.strokeStyle = color;
         ctx.lineWidth = tick_line_width_world;
-
         ctx.beginPath();
         ctx.moveTo(current_tick_world_x, ruler_baseline_world_y);
-
         ctx.lineTo(current_tick_world_x, ruler_baseline_world_y + tick_height_world);
         ctx.stroke();
 
@@ -329,7 +343,6 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
             } else {
                 let precision = 0;
                 const absOffset = Math.abs(offset);
-
                 if (major_tick_world_distance < 0.015 || (absOffset > epsilon && absOffset < 0.015)) precision = 3;
                 else if (major_tick_world_distance < 0.15 || (absOffset > epsilon && absOffset < 0.15)) precision = 2;
                 else if (major_tick_world_distance < 1.5 || (absOffset > epsilon && absOffset < 1.5)) precision = 1;
@@ -345,12 +358,12 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
     }
 };
 
-drawMapElites = function() {
-    if (!globals.mapelites_ctx || !globals.mapelites || !globals.interface) {
+Renderer.prototype._drawMapElites = function() {
+    if (!this.mapelitesContext || !globals.mapelites || !this.interface) {
         return;
     }
-    let context = globals.mapelites_ctx;
-    let canvas = globals.mapelites_canvas;
+    let context = this.mapelitesContext;
+    let canvas = this.mapelitesCanvas;
     let canvasWidth = canvas.width;
     let canvasHeight = canvas.height;
     context.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -398,10 +411,10 @@ drawMapElites = function() {
             }
         }
         normalized_score = Math.max(0, Math.min(1, normalized_score));
-        const gray_value = Math.floor(255 * (1 - normalized_score)); 
+        const gray_value = Math.floor(255 * (1 - normalized_score));
         context.fillStyle = "rgb(" + gray_value + "," + gray_value + "," + gray_value + ")";
         context.fillRect(x_start, 0, binWidth, canvasHeight);
-        context.strokeStyle = "#bbb"; 
+        context.strokeStyle = "#bbb";
         context.lineWidth = 0.5;
         context.strokeRect(x_start, 0, binWidth, canvasHeight);
         if (!bin.enabled) {
@@ -416,28 +429,27 @@ drawMapElites = function() {
         }
     }
 
-    if (globals.interface.selectedMapElitesBin > -1 && globals.interface.selectedMapElitesBin < bins.length) {
-        const bin = bins[globals.interface.selectedMapElitesBin];
+    if (this.interface.selectedMapElitesBin > -1 && this.interface.selectedMapElitesBin < bins.length) {
+        const bin = bins[this.interface.selectedMapElitesBin];
         if (bin) {
             const x_start = canvasWidth * (bin.low - threshold);
             const x_end = canvasWidth * (bin.high - threshold);
             const binWidth = x_end - x_start;
-            context.strokeStyle = "red"; 
+            context.strokeStyle = "red";
             context.lineWidth = 2;
             context.strokeRect(x_start + 1, 1, binWidth - 2, canvasHeight - 2);
         }
     }
 }
 
-drawGenePool = function() {
+Renderer.prototype._drawGenePool = function() {
+    let genepool = this.interface ? this.interface.currentSelectedGenePool : null;
 
-    let genepool = globals.interface ? globals.interface.currentSelectedGenePool : null;
-
-    if (!globals.genepool_ctx) {
+    if (!this.genepoolContext) {
         return;
     }
-    let context = globals.genepool_ctx;
-    let canvas = globals.genepool_canvas;
+    let context = this.genepoolContext;
+    let canvas = this.genepoolCanvas;
     let canvasWidth = canvas.width;
     let canvasHeight = canvas.height;
     context.clearRect(0, 0, canvasWidth, canvasHeight);

@@ -17,6 +17,7 @@ Interface.prototype.__constructor = function(config, gameInstance) {
     this.renderFpsSelectEl = document.getElementById("render_fps");
     this.simulationFpsSelectEl = document.getElementById("simulation_fps");
 
+    this.simCanvasEl = document.getElementById("sim_canvas");
     this.mapelitesCanvasEl = document.getElementById("mapelites_canvas");
     this.genepoolCanvasEl = document.getElementById("genepool_canvas");
 
@@ -84,11 +85,11 @@ Interface.prototype._initializeUI = function() {
     }
 
     if (this.mapelitesCanvasEl) {
-        this.mapelitesCanvasEl.addEventListener('click', (e) => { 
-            this.handleMapElitesClick(e); 
+        this.mapelitesCanvasEl.addEventListener('click', (e) => {
+            this.handleMapElitesClick(e);
         });
-        this.mapelitesCanvasEl.addEventListener('contextmenu', (e) => { 
-            this.handleMapElitesRightClick(e); 
+        this.mapelitesCanvasEl.addEventListener('contextmenu', (e) => {
+            this.handleMapElitesRightClick(e);
         });
     }
 
@@ -131,14 +132,18 @@ Interface.prototype._setupSelectControl = function(selectElement, configProperty
             let newValue = isFloat ? parseFloat(selectElement.value) : parseInt(selectElement.value);
             this.config[configPropertyKey] = newValue;
 
+            const globalConfig = window.config || {};
+            globalConfig[configPropertyKey] = newValue;
+
             const lowerCaseConfigProperty = configPropertyKey.toLowerCase();
             if (this.config[lowerCaseConfigProperty] !== undefined && lowerCaseConfigProperty !== configPropertyKey) {
                  this.config[lowerCaseConfigProperty] = newValue;
+                 globalConfig[lowerCaseConfigProperty] = newValue;
             }
-            if (config[configPropertyKey.toLowerCase()] !== undefined) {
-                 config[configPropertyKey.toLowerCase()] = newValue;
-            } else if (config[configPropertyKey] !== undefined) {
-                 config[configPropertyKey] = newValue;
+             if (globalConfig[configPropertyKey.toLowerCase()] !== undefined) {
+                 globalConfig[configPropertyKey.toLowerCase()] = newValue;
+            } else if (globalConfig[configPropertyKey] !== undefined) {
+                 globalConfig[configPropertyKey] = newValue;
             }
         };
     }
@@ -215,13 +220,15 @@ Interface.prototype.setQuote = function() {
 Interface.prototype.deselectMapElitesBin = function() {
     if (this.selectedMapElitesBin === -1) return;
     this.selectedMapElitesBin = -1;
-    this.currentSelectedGenePool = null; 
+    this.currentSelectedGenePool = null;
     if (globals.mapelites) {
-        globals.history = globals.mapelites.history; 
+        globals.history = globals.mapelites.history;
     }
-    drawMapElites();
-    drawGenePool();
-    this.updateHistoryList(true); 
+    if (globals.renderer) {
+        globals.renderer._drawMapElites();
+        globals.renderer._drawGenePool();
+    }
+    this.updateHistoryList(true);
 };
 
 Interface.prototype._findClickedMapElitesBin = function(event) {
@@ -237,10 +244,6 @@ Interface.prototype._findClickedMapElitesBin = function(event) {
 
     for (let i = 0; i < bins.length; i++) {
         const bin = bins[i];
-        const binRangeStart = bin.low - threshold;
-        const binRangeEnd = bin.high - threshold;
-
-        const startX = canvasWidth * binRangeStart;
 
         const xPixelStart = canvasWidth * (bin.low - threshold);
         const xPixelEnd = canvasWidth * (bin.high - threshold);
@@ -261,8 +264,10 @@ Interface.prototype.handleMapElitesClick = function(event) {
         this.selectedMapElitesBin = bin.index;
         this.currentSelectedGenePool = bin.genepool;
         globals.history = bin.genepool.history;
-        drawMapElites();
-        drawGenePool();
+        if (globals.renderer) {
+            globals.renderer._drawMapElites();
+            globals.renderer._drawGenePool();
+        }
         this.updateHistoryList(true);
     }
 };
@@ -274,6 +279,8 @@ Interface.prototype.handleMapElitesRightClick = function(event) {
     const bin = this._findClickedMapElitesBin(event);
     if (bin) {
         bin.enabled = !bin.enabled;
-        drawMapElites();
+        if (globals.renderer) {
+            globals.renderer._drawMapElites();
+        }
     }
 };

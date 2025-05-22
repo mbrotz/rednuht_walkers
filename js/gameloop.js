@@ -30,9 +30,9 @@ GameLoop.prototype.__constructor = function(config) {
 
     globals.history = globals.mapelites.history;
 
-    drawInit();
+    globals.interface = new Interface(config, this);
 
-    globals.interface = new Interface(config, this); 
+    globals.renderer = new Renderer(config, globals.interface);
 
     this.paused = (this.simulation_fps === 0);
 
@@ -145,7 +145,9 @@ GameLoop.prototype._mainLoop = function(currentTimestamp) {
         this.renderAccumulator += deltaTimeMs;
 
         if (this.renderAccumulator >= renderIntervalMs) {
-            drawFrame();
+            if (globals.renderer) {
+                globals.renderer.drawFrame();
+            }
             this.renderAccumulator %= renderIntervalMs;
         }
     }
