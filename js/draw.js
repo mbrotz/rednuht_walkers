@@ -370,7 +370,7 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
 };
 
 drawMapElites = function() {
-    if (!globals.mapelites_ctx || !globals.mapelites) {
+    if (!globals.mapelites_ctx || !globals.mapelites || !globals.interface) {
         return;
     }
     let context = globals.mapelites_ctx;
@@ -439,24 +439,34 @@ drawMapElites = function() {
             context.stroke();
         }
     }
-    if (globals.selectedMapElitesBin > -1) {
-        const bin = bins[globals.selectedMapElitesBin];
-        const x_start = canvasWidth * (bin.low - threshold);
-        const x_end = canvasWidth * (bin.high - threshold);
-        const binWidth = x_end - x_start;
-        context.strokeStyle = "red"; 
-        context.lineWidth = 2;
-        context.strokeRect(x_start + 1, 1, binWidth - 2, canvasHeight - 2);
+    // Use globals.interface.selectedMapElitesBin
+    if (globals.interface.selectedMapElitesBin > -1 && globals.interface.selectedMapElitesBin < bins.length) {
+        const bin = bins[globals.interface.selectedMapElitesBin];
+        if (bin) { // Add a check for bin existence
+            const x_start = canvasWidth * (bin.low - threshold);
+            const x_end = canvasWidth * (bin.high - threshold);
+            const binWidth = x_end - x_start;
+            context.strokeStyle = "red"; 
+            context.lineWidth = 2;
+            context.strokeRect(x_start + 1, 1, binWidth - 2, canvasHeight - 2);
+        }
     }
 }
 
 drawGenePool = function() {
-    if (!globals.genepool_ctx || !globals.genepool) {
-        let context = globals.genepool_ctx;
-        let canvas = globals.genepool_canvas;
-        let canvasWidth = canvas.width;
-        let canvasHeight = canvas.height;
-        context.clearRect(0, 0, canvasWidth, canvasHeight);
+    // Use globals.interface.currentSelectedGenePool
+    let genepool = globals.interface ? globals.interface.currentSelectedGenePool : null;
+
+    if (!globals.genepool_ctx) { // Check context first
+        return;
+    }
+    let context = globals.genepool_ctx;
+    let canvas = globals.genepool_canvas;
+    let canvasWidth = canvas.width;
+    let canvasHeight = canvas.height;
+    context.clearRect(0, 0, canvasWidth, canvasHeight);
+
+    if (!genepool) { // If no gene pool is selected (or interface not ready)
         context.fillStyle = "#eee";
         context.fillRect(0,0, canvasWidth, canvasHeight);
         context.strokeStyle = "#ccc";
@@ -467,12 +477,7 @@ drawGenePool = function() {
         context.fillText("No MAP-Elites Bin Selected", canvasWidth / 2, canvasHeight / 2 + 4);
         return;
     }
-    let context = globals.genepool_ctx;
-    let canvas = globals.genepool_canvas;
-    let canvasWidth = canvas.width;
-    let canvasHeight = canvas.height;
-    context.clearRect(0, 0, canvasWidth, canvasHeight);
-    let genepool = globals.genepool;
+    
     if (genepool.tiers.length === 0 || genepool.history.record_score <= 0) {
         context.fillStyle = "#eee";
         context.fillRect(0,0, canvasWidth, canvasHeight);

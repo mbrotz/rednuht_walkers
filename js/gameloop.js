@@ -31,21 +31,21 @@ GameLoop.prototype.__constructor = function(config) {
     globals.floor = this._createFloor(config);
     globals.population = new Population(config);
     globals.mapelites = new MapElites(config);
-    globals.genepool = null;
-    globals.history = globals.mapelites.history;
+    // globals.genepool = null; // This global is now managed by Interface for display purposes
+    globals.history = globals.mapelites.history; // Default global history
 
     drawInit(); // drawInit uses global config and sets up globals.camera, globals.sim_canvas etc.
-    interfaceSetup(this); // Pass GameLoop instance to interfaceSetup
-
-    setQuote(); // setQuote is still in interface.js
-    setInterval(setQuote, 60000);
+    
+    // Create and initialize the interface
+    // 'this' (the GameLoop instance) is passed to Interface constructor
+    globals.interface = new Interface(config, this); 
 
     // Initialize loop state (already done for most loop-specific vars)
     this.paused = (this.simulation_fps === 0); // Re-affirm based on current this.simulation_fps
 
     globals.population.initPopulation();
-    updateWalkerCount();
-    updatePopulationList();
+    globals.interface.updateWalkerCount(); // Use interface methods
+    globals.interface.updatePopulationList(); // Use interface methods
 
     // Start the main loop if not initially paused or if rendering is on
     if (!this.paused || this.render_fps > 0) {
@@ -80,9 +80,12 @@ GameLoop.prototype._simulationStep = function() {
     globals.world.Step(this.PHYSICS_FIXED_DELTA_TIME_SECONDS, this.velocity_iterations, this.position_iterations);
     // globals.world.ClearForces(); // Box2D typically handles this
 
-    updateWalkerCount();
-    updatePopulationList();
-    updateHistoryList();
+    // Use interface methods for UI updates
+    if (globals.interface) {
+        globals.interface.updateWalkerCount();
+        globals.interface.updatePopulationList();
+        globals.interface.updateHistoryList();
+    }
 
     const stepEndTime = performance.now();
     this.recentStepDurations.push(stepEndTime - stepStartTime);

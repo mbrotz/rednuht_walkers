@@ -45,9 +45,10 @@ globals = {
     floor: null,
     population: null,
     mapelites: null,
-    genepool: null,
-    history: null,
-    selectedMapElitesBin: -1,
+    // genepool: null, // This specific global (for selected genepool display) is now managed by Interface
+    history: null,     // This global points to the currently active history (either main or selected bin's)
+    interface: null,   // The new Interface instance
+    // selectedMapElitesBin: -1, // This state is now within globals.interface
 };
 
 
