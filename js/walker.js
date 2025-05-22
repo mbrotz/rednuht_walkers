@@ -75,7 +75,7 @@ Walker.prototype.updateMetrics = function() {
         }
         this.mean_head_height = this.mean_head_height_sum / this.local_step_counter;
         this.mean_forward_velocity = this.mean_forward_velocity_sum / this.local_step_counter;
-        this.score = this.max_torso_position; // * (1.0 + this.mean_forward_velocity);
+        this.score = this.max_torso_position;
     }
 }
 

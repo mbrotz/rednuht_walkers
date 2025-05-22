@@ -16,7 +16,7 @@ GenePool.prototype.__constructor = function(config) {
     this.num_walkers = 0;
     this.tiers = [];
     this.history = new History(config);
-    
+
     let current_range = this.range;
     for (let i = 0; i < this.num_tiers; i++) {
         this.tiers.push({

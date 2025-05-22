@@ -39,8 +39,6 @@ Population.prototype.simulationStep = function() {
     }
 }
 
-// -----------------------------------------------------------------------
-
 let History = function() {
     this.__constructor.apply(this, arguments);
 }

@@ -196,82 +196,65 @@ drawWalkersOriginIndicator = function(ctx, walkers_origin_x, floor) {
 }
 
 drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
-    // --- Ruler Visual Parameters (in screen units, will be converted to world units) ---
+
     const RULER_MAIN_COLOR = "#666";
-    const RULER_FADED_COLOR = "#AAA"; // For negative ticks/labels relative to walkers_origin_x
+    const RULER_FADED_COLOR = "#AAA";
     const RULER_BASELINE_LINE_WIDTH_SCREEN = 1;
     const RULER_TICK_LINE_WIDTH_SCREEN = 1;
 
-    // Vertical positioning: Try to center the ruler in the available space below the floor
-    const RULER_VERTICAL_PADDING_SCREEN = 5; // Min padding from canvas bottom & floor
-    const MIN_RULER_AREA_HEIGHT_SCREEN = 30; // Ensure ruler has some space
+    const RULER_VERTICAL_PADDING_SCREEN = 5;
+    const MIN_RULER_AREA_HEIGHT_SCREEN = 30;
 
     const MAJOR_TICK_HEIGHT_SCREEN = 8;
     const MINOR_TICK_HEIGHT_SCREEN = 4;
     const FONT_SIZE_SCREEN = 10;
-    // Gap between the ruler baseline and the top of the text labels
+
     const LABEL_OFFSET_FROM_BASELINE_SCREEN = 10;
 
-
-    // --- 1. Calculate Y Positions ---
     let floor_y_world = floor.GetFixtureList().m_shape.m_vertices[0].y;
     let floor_y_screen = camera.worldToScreenY(floor_y_world);
 
-    // Define the screen space available for the ruler
     let ruler_area_top_screen = floor_y_screen + RULER_VERTICAL_PADDING_SCREEN;
     let ruler_area_bottom_screen = canvas.height - RULER_VERTICAL_PADDING_SCREEN;
 
-    // If not enough space, fallback to a fixed position or don't draw
     if (ruler_area_bottom_screen - ruler_area_top_screen < MIN_RULER_AREA_HEIGHT_SCREEN) {
-        // Fallback: position ruler at a fixed distance from bottom if space is too small
+
         ruler_area_bottom_screen = canvas.height - RULER_VERTICAL_PADDING_SCREEN;
         ruler_area_top_screen = ruler_area_bottom_screen - MIN_RULER_AREA_HEIGHT_SCREEN;
         if (ruler_area_top_screen < floor_y_screen + RULER_VERTICAL_PADDING_SCREEN) {
-             // still not enough, or overlapping with floor view, maybe don't draw or clamp
+
              ruler_area_top_screen = floor_y_screen + RULER_VERTICAL_PADDING_SCREEN;
-             if (ruler_area_bottom_screen <= ruler_area_top_screen) return; // Cannot draw
+             if (ruler_area_bottom_screen <= ruler_area_top_screen) return;
         }
     }
 
-    // The baseline is where ticks start. Labels are below it. Ticks go up.
-    // Let's place the baseline such that there's space for labels below it and ticks above it.
-    // Baseline will be 'LABEL_OFFSET_FROM_BASELINE_SCREEN + FONT_SIZE_SCREEN' from the bottom of text.
-    // And 'MAJOR_TICK_HEIGHT_SCREEN' from the top of major ticks.
-    // Total height needed: MAJOR_TICK_HEIGHT_SCREEN + LABEL_OFFSET_FROM_BASELINE_SCREEN + FONT_SIZE_SCREEN
-    // Center this block within ruler_area_top_screen and ruler_area_bottom_screen
     let ruler_content_height_screen = MAJOR_TICK_HEIGHT_SCREEN + LABEL_OFFSET_FROM_BASELINE_SCREEN + FONT_SIZE_SCREEN;
     let ruler_center_y_screen = ruler_area_top_screen + (ruler_area_bottom_screen - ruler_area_top_screen) / 2;
 
     let ruler_baseline_y_screen = ruler_center_y_screen + (ruler_content_height_screen / 2) - FONT_SIZE_SCREEN - LABEL_OFFSET_FROM_BASELINE_SCREEN;
 
-    // Convert screen Y positions and dimensions to world units
     let ruler_baseline_world_y = camera.screenToWorldY(ruler_baseline_y_screen);
     let major_tick_height_world = camera.screenToWorldHeight(MAJOR_TICK_HEIGHT_SCREEN);
     let minor_tick_height_world = camera.screenToWorldHeight(MINOR_TICK_HEIGHT_SCREEN);
 
-    // Y position for the top of the text labels (textBaseline = "top")
     let label_text_y_screen = ruler_baseline_y_screen + LABEL_OFFSET_FROM_BASELINE_SCREEN;
     let label_text_y_world = camera.screenToWorldY(label_text_y_screen);
 
-
-    // --- 2. Calculate X Extents (World) ---
-    // Extend slightly beyond screen edges to ensure ticks at edges are fully drawn
     const screen_edge_buffer_px = 20;
     let world_left_edge = camera.screenToWorldX(0 - screen_edge_buffer_px);
     let world_right_edge = camera.screenToWorldX(canvas.width + screen_edge_buffer_px);
     let visible_world_width = world_right_edge - world_left_edge;
 
     if (visible_world_width <= 0 || camera.zoom <= 0) {
-        return; // Invalid state
+        return;
     }
 
-    // --- 3. Determine Tick Intervals (World Units) ---
-    let desired_major_ticks_on_screen = Math.max(3, Math.min(10, canvas.width / 80)); // Aim for one major tick every ~80px
+    let desired_major_ticks_on_screen = Math.max(3, Math.min(10, canvas.width / 80));
     let rough_major_interval_world = visible_world_width / desired_major_ticks_on_screen;
     let major_tick_world_distance;
 
-    if (rough_major_interval_world <= 1e-9) { // Avoid log(0) or extremely small values
-        major_tick_world_distance = 1; // Default fallback
+    if (rough_major_interval_world <= 1e-9) {
+        major_tick_world_distance = 1;
     } else {
         let exponent = Math.floor(Math.log10(rough_major_interval_world));
         let powerOf10 = Math.pow(10, exponent);
@@ -283,57 +266,50 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
         else                               major_tick_world_distance = 10 * powerOf10;
     }
 
-    const min_sensible_world_interval = 1e-4; // Prevent overly dense ticks if highly zoomed
+    const min_sensible_world_interval = 1e-4;
     if (major_tick_world_distance < min_sensible_world_interval) {
         major_tick_world_distance = min_sensible_world_interval;
     }
-    if (major_tick_world_distance <= 1e-9) major_tick_world_distance = 0.1; // Final fallback
+    if (major_tick_world_distance <= 1e-9) major_tick_world_distance = 0.1;
 
     const num_minor_subdivisions = 5;
     let minor_tick_world_distance = major_tick_world_distance / num_minor_subdivisions;
-    const epsilon = minor_tick_world_distance * 0.01; // For floating point comparisons
+    const epsilon = minor_tick_world_distance * 0.01;
 
-    // --- 4. Setup Drawing Styles ---
-    // (Assumes ctx is already transformed by camera.apply())
     const baseline_line_width_world = camera.screenToWorldWidth(RULER_BASELINE_LINE_WIDTH_SCREEN);
     const tick_line_width_world = camera.screenToWorldWidth(RULER_TICK_LINE_WIDTH_SCREEN);
-    const font_size_world = camera.screenToWorldHeight(FONT_SIZE_SCREEN); // Equivalent to FONT_SIZE_SCREEN / camera.zoom
+    const font_size_world = camera.screenToWorldHeight(FONT_SIZE_SCREEN);
 
     ctx.font = font_size_world + "px sans-serif";
     ctx.textAlign = "center";
 
-    // --- 5. Draw Ruler Baseline ---
     ctx.strokeStyle = RULER_MAIN_COLOR;
     ctx.lineWidth = baseline_line_width_world;
     ctx.beginPath();
-    // Draw baseline from actual screen edge to screen edge in world coords
+
     ctx.moveTo(camera.screenToWorldX(0), ruler_baseline_world_y);
     ctx.lineTo(camera.screenToWorldX(canvas.width), ruler_baseline_world_y);
     ctx.stroke();
 
-    // --- 6. Draw Ticks and Labels ---
-    // Determine the first tick offset that could be visible
-    // Offset is relative to walkers_origin_x
     let first_tick_offset_world = Math.floor((world_left_edge - walkers_origin_x) / minor_tick_world_distance) * minor_tick_world_distance;
 
     for (let offset = first_tick_offset_world; ; offset += minor_tick_world_distance) {
         let current_tick_world_x = walkers_origin_x + offset;
         if (current_tick_world_x > world_right_edge) {
-            break; // Past the visible range (plus buffer)
+            break;
         }
-        if (current_tick_world_x < world_left_edge && Math.abs(offset) > major_tick_world_distance*2) { // Optimization: skip if far left
-             if (offset > 0 && walkers_origin_x + offset + major_tick_world_distance < world_left_edge) { // speed up for positive offsets
+        if (current_tick_world_x < world_left_edge && Math.abs(offset) > major_tick_world_distance*2) {
+             if (offset > 0 && walkers_origin_x + offset + major_tick_world_distance < world_left_edge) {
                 offset = Math.ceil((world_left_edge - walkers_origin_x) / minor_tick_world_distance -1) * minor_tick_world_distance ;
                 continue;
             }
         }
 
         const is_major_tick = Math.abs(offset % major_tick_world_distance) < epsilon || Math.abs(offset % major_tick_world_distance - major_tick_world_distance) < epsilon || Math.abs(offset % major_tick_world_distance + major_tick_world_distance) < epsilon;
-        const is_zero_tick_label = Math.abs(offset) < epsilon; // This is the "0" label at walkers_origin_x
+        const is_zero_tick_label = Math.abs(offset) < epsilon;
 
         let tick_height_world = is_major_tick ? major_tick_height_world : minor_tick_height_world;
 
-        // Negative ticks/labels (to the left of walkers_origin_x) are faded
         const color = (offset < -epsilon && !is_zero_tick_label) ? RULER_FADED_COLOR : RULER_MAIN_COLOR;
 
         ctx.strokeStyle = color;
@@ -341,7 +317,7 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
 
         ctx.beginPath();
         ctx.moveTo(current_tick_world_x, ruler_baseline_world_y);
-        // Ticks go UP from the baseline (positive Y in world, up on screen due to camera's -zoom_y)
+
         ctx.lineTo(current_tick_world_x, ruler_baseline_world_y + tick_height_world);
         ctx.stroke();
 
@@ -353,7 +329,7 @@ drawRuler = function(camera, canvas, ctx, walkers_origin_x, floor) {
             } else {
                 let precision = 0;
                 const absOffset = Math.abs(offset);
-                // finer precision for very small intervals/offsets
+
                 if (major_tick_world_distance < 0.015 || (absOffset > epsilon && absOffset < 0.015)) precision = 3;
                 else if (major_tick_world_distance < 0.15 || (absOffset > epsilon && absOffset < 0.15)) precision = 2;
                 else if (major_tick_world_distance < 1.5 || (absOffset > epsilon && absOffset < 1.5)) precision = 1;
@@ -439,10 +415,10 @@ drawMapElites = function() {
             context.stroke();
         }
     }
-    // Use globals.interface.selectedMapElitesBin
+
     if (globals.interface.selectedMapElitesBin > -1 && globals.interface.selectedMapElitesBin < bins.length) {
         const bin = bins[globals.interface.selectedMapElitesBin];
-        if (bin) { // Add a check for bin existence
+        if (bin) {
             const x_start = canvasWidth * (bin.low - threshold);
             const x_end = canvasWidth * (bin.high - threshold);
             const binWidth = x_end - x_start;
@@ -454,10 +430,10 @@ drawMapElites = function() {
 }
 
 drawGenePool = function() {
-    // Use globals.interface.currentSelectedGenePool
+
     let genepool = globals.interface ? globals.interface.currentSelectedGenePool : null;
 
-    if (!globals.genepool_ctx) { // Check context first
+    if (!globals.genepool_ctx) {
         return;
     }
     let context = globals.genepool_ctx;
@@ -466,7 +442,7 @@ drawGenePool = function() {
     let canvasHeight = canvas.height;
     context.clearRect(0, 0, canvasWidth, canvasHeight);
 
-    if (!genepool) { // If no gene pool is selected (or interface not ready)
+    if (!genepool) {
         context.fillStyle = "#eee";
         context.fillRect(0,0, canvasWidth, canvasHeight);
         context.strokeStyle = "#ccc";
@@ -477,7 +453,7 @@ drawGenePool = function() {
         context.fillText("No MAP-Elites Bin Selected", canvasWidth / 2, canvasHeight / 2 + 4);
         return;
     }
-    
+
     if (genepool.tiers.length === 0 || genepool.history.record_score <= 0) {
         context.fillStyle = "#eee";
         context.fillRect(0,0, canvasWidth, canvasHeight);

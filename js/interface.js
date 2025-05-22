@@ -5,9 +5,8 @@ let Interface = function() {
 
 Interface.prototype.__constructor = function(config, gameInstance) {
     this.config = config;
-    this.game = gameInstance; // The GameLoop instance
+    this.game = gameInstance;
 
-    // Cache DOM elements
     this.pageQuoteEl = document.getElementById("page_quote");
     this.totalWalkersCreatedEl = document.getElementById("total_walkers_created");
     this.populationListEl = document.getElementById("population_list");
@@ -19,14 +18,13 @@ Interface.prototype.__constructor = function(config, gameInstance) {
     this.simulationFpsSelectEl = document.getElementById("simulation_fps");
 
     this.mapelitesCanvasEl = document.getElementById("mapelites_canvas");
-    this.genepoolCanvasEl = document.getElementById("genepool_canvas"); // Though drawing is in draw.js, Interface might need to know about it
+    this.genepoolCanvasEl = document.getElementById("genepool_canvas");
 
-    // UI State
     this.lastPopulationUpdate = undefined;
     this.lastHistoryUpdate = undefined;
     this.lastWalkerCountUpdate = undefined;
     this.selectedMapElitesBin = -1;
-    this.currentSelectedGenePool = null; // This will hold the genepool of the selected MAP-Elites bin
+    this.currentSelectedGenePool = null;
 
     this.quotes = [
         "It is not the strongest of the species that survives, nor the most intelligent; it is the one most adaptable to change.",
@@ -57,12 +55,10 @@ Interface.prototype.__constructor = function(config, gameInstance) {
 };
 
 Interface.prototype._initializeUI = function() {
-    // Setup for config-based select controls
+
     this._setupSelectControl(this.mutationChanceSelectEl, "mutation_chance", true);
     this._setupSelectControl(this.mutationAmountSelectEl, "mutation_amount", true);
 
-
-    // Setup for GameLoop FPS controls
     if (this.renderFpsSelectEl) {
         for (let k = 0; k < this.renderFpsSelectEl.options.length; k++) {
             if (parseInt(this.renderFpsSelectEl.options[k].value) === this.game.render_fps) {
@@ -86,7 +82,7 @@ Interface.prototype._initializeUI = function() {
             this.game.setSimulationFps(parseInt(this.simulationFpsSelectEl.value));
         };
     }
-    
+
     if (this.mapelitesCanvasEl) {
         this.mapelitesCanvasEl.addEventListener('click', (e) => { 
             this.handleMapElitesClick(e); 
@@ -96,18 +92,17 @@ Interface.prototype._initializeUI = function() {
         });
     }
 
-    // Global click listener to deselect MAP-Elites bin
     document.body.addEventListener('click', (event) => {
         if (this.selectedMapElitesBin !== -1) {
             const target = event.target;
-            // Check if click is on mapelites_canvas itself
+
             if (this.mapelitesCanvasEl && (target === this.mapelitesCanvasEl || this.mapelitesCanvasEl.contains(target))) {
                 return;
             }
-            // Check if click is within other protected UI areas
+
             const protectedAreasIds = ['genepool_canvas', 'history_panel', 'population_panel', 'controls_settings_panel'];
             const protectedAreas = protectedAreasIds.map(id => document.getElementById(id));
-            
+
             for (const area of protectedAreas) {
                 if (area && (target === area || area.contains(target))) {
                     return;
@@ -120,7 +115,7 @@ Interface.prototype._initializeUI = function() {
 
 Interface.prototype._setupSelectControl = function(selectElement, configPropertyKey, isFloat) {
     if (selectElement) {
-        // Use this.config for initial values and updates
+
         let configValueToMatch = this.config[configPropertyKey];
 
         for (let k = 0; k < selectElement.options.length; k++) {
@@ -135,14 +130,12 @@ Interface.prototype._setupSelectControl = function(selectElement, configProperty
         selectElement.onchange = () => {
             let newValue = isFloat ? parseFloat(selectElement.value) : parseInt(selectElement.value);
             this.config[configPropertyKey] = newValue;
-            // Ensure original config object (if different casing) is also updated if necessary.
-            // This handles cases where config might have inconsistent casing.
-            // A more robust solution would be to normalize all config keys initially.
+
             const lowerCaseConfigProperty = configPropertyKey.toLowerCase();
             if (this.config[lowerCaseConfigProperty] !== undefined && lowerCaseConfigProperty !== configPropertyKey) {
                  this.config[lowerCaseConfigProperty] = newValue;
             }
-            if (config[configPropertyKey.toLowerCase()] !== undefined) { // Update global config directly as well
+            if (config[configPropertyKey.toLowerCase()] !== undefined) {
                  config[configPropertyKey.toLowerCase()] = newValue;
             } else if (config[configPropertyKey] !== undefined) {
                  config[configPropertyKey] = newValue;
@@ -193,7 +186,7 @@ Interface.prototype.updateHistoryList = function(force = false) {
     let now = performance.now();
     if (force === true || this.lastHistoryUpdate === undefined || now - this.lastHistoryUpdate >= 500) {
         this.lastHistoryUpdate = now;
-        // globals.history can point to different history objects based on selection
+
         if (this.historyListEl && globals.history) {
             this.historyListEl.innerHTML = "";
             for (let k = 0; k < globals.history.walkers.length; k++) {
@@ -223,11 +216,11 @@ Interface.prototype.deselectMapElitesBin = function() {
     if (this.selectedMapElitesBin === -1) return;
     this.selectedMapElitesBin = -1;
     this.currentSelectedGenePool = null; 
-    if (globals.mapelites) { // Ensure mapelites is initialized
+    if (globals.mapelites) {
         globals.history = globals.mapelites.history; 
     }
-    drawMapElites(); // Assumes drawMapElites is global
-    drawGenePool();  // Assumes drawGenePool is global
+    drawMapElites();
+    drawGenePool();
     this.updateHistoryList(true); 
 };
 
@@ -244,29 +237,13 @@ Interface.prototype._findClickedMapElitesBin = function(event) {
 
     for (let i = 0; i < bins.length; i++) {
         const bin = bins[i];
-        const binRangeStart = bin.low - threshold; // Relative to the start of the plottable area
-        const binRangeEnd = bin.high - threshold;  // Relative to the start of the plottable area
-        
-        // The plottable area itself is (1.0 - threshold) of the canvas width
-        // So, the actual width of the plottable part of map elites is canvasWidth * (mapelites.range / (1 - threshold))
-        // Or, more simply, the coordinates are scaled by canvasWidth / (total range represented, which is 1.0 - threshold)
-        // For example, if threshold is 0.2, then bin.low/high are in [0.2, 1.0]. We map [0.2, 1.0] to [0, canvasWidth].
-        // So, map (val - threshold) to canvas pixels.
-        // Example: if bin.low = 0.2 (threshold), this is x=0. if bin.high = 1.0, this is x = canvasWidth.
+        const binRangeStart = bin.low - threshold;
+        const binRangeEnd = bin.high - threshold;
 
-        const startX = canvasWidth * binRangeStart; // Incorrect - this assumes the bin.low/high are already 0-1 scaled from threshold.
-                                                   // bin.low/high are absolute head heights.
-                                                   // The drawn range on canvas is from mapelites.threshold to 1.0
-                                                   // The width of this range is (1.0 - mapelites.threshold)
-                                                   // A position 'p' in [mapelites.threshold, 1.0] maps to pixel (p - mapelites.threshold) / (1.0 - mapelites.threshold) * canvasWidth
-        
-        // Correct calculation as per drawMapElites:
-        // x_start = canvasWidth * (bin.low - threshold);  <-- this is what drawMapElites uses, so this is good.
-        // x_end = canvasWidth * (bin.high - threshold);
+        const startX = canvasWidth * binRangeStart;
 
         const xPixelStart = canvasWidth * (bin.low - threshold);
         const xPixelEnd = canvasWidth * (bin.high - threshold);
-
 
         if (clickX >= xPixelStart && clickX < xPixelEnd) {
             return bins[i];
@@ -283,7 +260,7 @@ Interface.prototype.handleMapElitesClick = function(event) {
     if (bin) {
         this.selectedMapElitesBin = bin.index;
         this.currentSelectedGenePool = bin.genepool;
-        globals.history = bin.genepool.history; // Switch global history context
+        globals.history = bin.genepool.history;
         drawMapElites();
         drawGenePool();
         this.updateHistoryList(true);

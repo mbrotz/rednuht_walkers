@@ -15,39 +15,31 @@ GameLoop.prototype.__constructor = function(config) {
     this.renderAccumulator = 0;
     this.animationFrameId = null;
     this.recentStepDurations = [];
-    this.avgStepDurationMs = (1.0 / this.time_step) * 1000; // Initial estimate
+    this.avgStepDurationMs = (1.0 / this.time_step) * 1000;
 
-    // Derived constants
     this.PHYSICS_FIXED_DELTA_TIME_SECONDS = 1.0 / this.time_step;
     this.PHYSICS_FIXED_DELTA_TIME_MS = this.PHYSICS_FIXED_DELTA_TIME_SECONDS * 1000;
 
-    // Max speed mode constants
     this.MAX_RECENT_STEP_DURATIONS = 10;
 
-
-    // --- Integrated gameInit logic ---
     globals.world = new b2.World(new b2.Vec2(0, -10));
-    globals.world.SetContactListener(new HeadFloorContactListener()); // HeadFloorContactListener is still in game.js
+    globals.world.SetContactListener(new HeadFloorContactListener());
     globals.floor = this._createFloor(config);
     globals.population = new Population(config);
     globals.mapelites = new MapElites(config);
-    // globals.genepool = null; // This global is now managed by Interface for display purposes
-    globals.history = globals.mapelites.history; // Default global history
 
-    drawInit(); // drawInit uses global config and sets up globals.camera, globals.sim_canvas etc.
-    
-    // Create and initialize the interface
-    // 'this' (the GameLoop instance) is passed to Interface constructor
+    globals.history = globals.mapelites.history;
+
+    drawInit();
+
     globals.interface = new Interface(config, this); 
 
-    // Initialize loop state (already done for most loop-specific vars)
-    this.paused = (this.simulation_fps === 0); // Re-affirm based on current this.simulation_fps
+    this.paused = (this.simulation_fps === 0);
 
     globals.population.initPopulation();
-    globals.interface.updateWalkerCount(); // Use interface methods
-    globals.interface.updatePopulationList(); // Use interface methods
+    globals.interface.updateWalkerCount();
+    globals.interface.updatePopulationList();
 
-    // Start the main loop if not initially paused or if rendering is on
     if (!this.paused || this.render_fps > 0) {
         this.animationFrameId = requestAnimationFrame(this._mainLoop.bind(this));
     }
@@ -78,9 +70,7 @@ GameLoop.prototype._simulationStep = function() {
 
     globals.population.simulationStep();
     globals.world.Step(this.PHYSICS_FIXED_DELTA_TIME_SECONDS, this.velocity_iterations, this.position_iterations);
-    // globals.world.ClearForces(); // Box2D typically handles this
 
-    // Use interface methods for UI updates
     if (globals.interface) {
         globals.interface.updateWalkerCount();
         globals.interface.updatePopulationList();
@@ -100,7 +90,7 @@ GameLoop.prototype._simulationStep = function() {
 GameLoop.prototype._mainLoop = function(currentTimestamp) {
     this.animationFrameId = requestAnimationFrame(this._mainLoop.bind(this));
 
-    if (this.lastTimestamp === 0) { // First frame initialization
+    if (this.lastTimestamp === 0) {
         this.lastTimestamp = currentTimestamp;
         return;
     }
@@ -115,7 +105,7 @@ GameLoop.prototype._mainLoop = function(currentTimestamp) {
     }
 
     if (!this.paused) {
-        if (this.simulation_fps === -1) { // "Max Speed" mode
+        if (this.simulation_fps === -1) {
             const frameStartTime = performance.now();
             let stepsThisFrame = 0;
             const timeBudgetMs = deltaTimeMs * 0.95;
@@ -132,7 +122,7 @@ GameLoop.prototype._mainLoop = function(currentTimestamp) {
                 }
             }
             this.simulationAccumulator = 0;
-        } else if (this.simulation_fps > 0) { // Target FPS mode
+        } else if (this.simulation_fps > 0) {
             this.simulationAccumulator += deltaTimeMs;
             let physicsStepsThisFrame = 0;
             const maxIter = Math.max(10, Math.ceil(this.simulation_fps / 15) + 5);
@@ -146,7 +136,7 @@ GameLoop.prototype._mainLoop = function(currentTimestamp) {
                 console.warn(`Max physics steps (${maxIter}) per frame reached in target FPS mode. Simulation might be falling behind target.`);
             }
         }
-    } else { // this.paused is true
+    } else {
         this.simulationAccumulator = 0;
     }
 
@@ -155,7 +145,7 @@ GameLoop.prototype._mainLoop = function(currentTimestamp) {
         this.renderAccumulator += deltaTimeMs;
 
         if (this.renderAccumulator >= renderIntervalMs) {
-            drawFrame(); // drawFrame uses globals
+            drawFrame();
             this.renderAccumulator %= renderIntervalMs;
         }
     }
@@ -170,10 +160,10 @@ GameLoop.prototype.setRenderFps = function(fps) {
         if (this.animationFrameId === null) {
             console.log("Restarting mainLoop due to render_fps change.");
             this.lastTimestamp = 0;
-            this.simulationAccumulator = 0; // Reset sim accumulator too if loop was fully stopped
+            this.simulationAccumulator = 0;
             this.animationFrameId = requestAnimationFrame(this._mainLoop.bind(this));
         }
-    } else if (fps === 0 && this.simulation_fps === 0) { // Render off AND simulation paused
+    } else if (fps === 0 && this.simulation_fps === 0) {
         if (this.animationFrameId !== null) {
             console.log("Stopping mainLoop completely (render and sim off).");
             cancelAnimationFrame(this.animationFrameId);
@@ -186,12 +176,12 @@ GameLoop.prototype.setSimulationFps = function(fps) {
     const oldSimFps = this.simulation_fps;
     this.simulation_fps = fps;
 
-    if (fps !== 0) { // Simulation is active
-        if (this.paused || oldSimFps === 0) { // If it was paused or just starting from 0 FPS
+    if (fps !== 0) {
+        if (this.paused || oldSimFps === 0) {
             this.paused = false;
             this.lastTimestamp = 0;
             this.simulationAccumulator = 0;
-            // this.renderAccumulator = 0; // Optional: reset render accumulator
+
             this.recentStepDurations = [];
             this.avgStepDurationMs = this.PHYSICS_FIXED_DELTA_TIME_MS;
 
@@ -200,9 +190,9 @@ GameLoop.prototype.setSimulationFps = function(fps) {
                 this.animationFrameId = requestAnimationFrame(this._mainLoop.bind(this));
             }
         }
-    } else { // fps === 0, so PAUSE simulation
+    } else {
         this.paused = true;
-        if (this.render_fps === 0 && this.animationFrameId !== null) { // Sim paused AND render off
+        if (this.render_fps === 0 && this.animationFrameId !== null) {
             console.log("Stopping mainLoop completely (sim paused and render off).");
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;

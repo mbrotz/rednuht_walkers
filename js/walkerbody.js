@@ -6,7 +6,7 @@ let WalkerBody = function() {
 WalkerBody.prototype.__constructor = function(owner, world) {
     this.owner = owner;
     this.world = world;
-    
+
     this.density = 106.2;
 
     this.bodyDefs = {
@@ -146,7 +146,6 @@ WalkerBody.prototype._createBody = function(partDefinition, x, y, userData = nul
     return body;
 };
 
-
 /**
  * Helper function to create a revolute joint with common settings.
  * These joints are typically motorized and added to the this.joints array.
@@ -193,10 +192,9 @@ WalkerBody.prototype._createWeldJoint = function(bodyA, bodyB, localAnchorA, loc
     this.world.CreateJoint(jd);
 };
 
-
 WalkerBody.prototype._createTorso = function() {
     const initialX = 0.5 - this.bodyDefs.foot.length / 2 + this.bodyDefs.lowerLeg.width / 2;
-    // legStackHeight is the Y-coordinate of the top of the upper leg
+
     const legStackHeight = this.bodyDefs.foot.height + this.bodyDefs.lowerLeg.length + this.bodyDefs.upperLeg.length;
 
     const upperTorsoDef = this.bodyDefs.upperTorso;
@@ -221,7 +219,7 @@ WalkerBody.prototype._createTorso = function() {
 
 WalkerBody.prototype._createLeg = function() {
     const initialX = 0.5 - this.bodyDefs.foot.length / 2 + this.bodyDefs.lowerLeg.width / 2;
-    // footBaseHeight is the Y-coordinate of the top of the foot
+
     const footBaseHeight = this.bodyDefs.foot.height;
 
     const upperLegDef = this.bodyDefs.upperLeg;
@@ -242,14 +240,12 @@ WalkerBody.prototype._createLeg = function() {
 
     let foot = this._createBody(
         footDef,
-        0.5, // Foot is centered at X=0.5
-        footDef.height / 2 // Foot center Y, assuming its base is at Y=0
+        0.5,
+        footDef.height / 2
     );
 
-    // Knee Joint
     this._createRevoluteJoint(upperLeg, lowerLeg, this.jointDefs.knee);
 
-    // Ankle Joint
     this._createRevoluteJoint(lowerLeg, foot, this.jointDefs.ankle);
 
     return {upperLeg: upperLeg, lowerLeg: lowerLeg, foot:foot};
@@ -257,7 +253,7 @@ WalkerBody.prototype._createLeg = function() {
 
 WalkerBody.prototype._createArm = function() {
     const initialX = 0.5 - this.bodyDefs.foot.length / 2 + this.bodyDefs.lowerLeg.width / 2;
-    // torsoTopY is the Y-coordinate of the top of the upper torso
+
     const torsoTopY = this.bodyDefs.foot.height + this.bodyDefs.lowerLeg.length + this.bodyDefs.upperLeg.length +
                       this.bodyDefs.lowerTorso.height + this.bodyDefs.upperTorso.height;
 
@@ -267,16 +263,15 @@ WalkerBody.prototype._createArm = function() {
     let upperArm = this._createBody(
         upperArmDef,
         initialX,
-        torsoTopY - upperArmDef.length / 2 // Center of upper arm, hanging down
+        torsoTopY - upperArmDef.length / 2
     );
 
     let lowerArm = this._createBody(
         lowerArmDef,
         initialX,
-        torsoTopY - upperArmDef.length - lowerArmDef.length / 2 // Center of lower arm
+        torsoTopY - upperArmDef.length - lowerArmDef.length / 2
     );
 
-    // Elbow Joint
     this._createRevoluteJoint(upperArm, lowerArm, this.jointDefs.elbow);
 
     return {upperArm: upperArm, lowerArm: lowerArm};
@@ -284,7 +279,7 @@ WalkerBody.prototype._createArm = function() {
 
 WalkerBody.prototype._createHead = function() {
     const initialX = 0.5 - this.bodyDefs.foot.length / 2 + this.bodyDefs.lowerLeg.width / 2;
-    // torsoTopY is the Y-coordinate of the top of the upper torso
+
     const torsoTopY = this.bodyDefs.foot.height + this.bodyDefs.lowerLeg.length + this.bodyDefs.upperLeg.length +
                       this.bodyDefs.lowerTorso.height + this.bodyDefs.upperTorso.height;
 
@@ -294,24 +289,23 @@ WalkerBody.prototype._createHead = function() {
     let neck = this._createBody(
         neckDef,
         initialX,
-        torsoTopY + neckDef.height / 2 // Center of neck, on top of torso
+        torsoTopY + neckDef.height / 2
     );
 
     let head = this._createBody(
         headDef,
         initialX,
-        torsoTopY + neckDef.height + headDef.height / 2, // Center of head, on top of neck
+        torsoTopY + neckDef.height + headDef.height / 2,
         { isHead: true, walker: this.owner }
     );
 
-    // Neck Joint (connecting head body part to neck body part)
     this._createRevoluteJoint(head, neck, this.jointDefs.neck);
 
     return {head: head, neck: neck};
 };
 
 WalkerBody.prototype._connectParts = function() {
-    // Weld joint connecting neck to upper torso
+
     this._createWeldJoint(
         this.head.neck,
         this.torso.upperTorso,
@@ -319,11 +313,9 @@ WalkerBody.prototype._connectParts = function() {
         new b2.Vec2(0, this.bodyDefs.upperTorso.height / 2)
     );
 
-    // Shoulder Joints
     this._createRevoluteJoint(this.torso.upperTorso, this.right_arm.upperArm, this.jointDefs.shoulder);
     this._createRevoluteJoint(this.torso.upperTorso, this.left_arm.upperArm, this.jointDefs.shoulder);
 
-    // Hip Joints
     this._createRevoluteJoint(this.torso.lowerTorso, this.right_leg.upperLeg, this.jointDefs.hip);
     this._createRevoluteJoint(this.torso.lowerTorso, this.left_leg.upperLeg, this.jointDefs.hip);
 };
