@@ -3,8 +3,7 @@ let Interface = function() {
     this.__constructor.apply(this, arguments);
 }
 
-Interface.prototype.__constructor = function(config, gameInstance) {
-    this.config = config;
+Interface.prototype.__constructor = function(gameInstance) {
     this.game = gameInstance;
 
     this.pageQuoteEl = document.getElementById("page_quote");
@@ -26,6 +25,7 @@ Interface.prototype.__constructor = function(config, gameInstance) {
     this.lastWalkerCountUpdate = undefined;
     this.selectedMapElitesBin = -1;
     this.currentSelectedGenePool = null;
+    this.activeHistory = null;
 
     this.quotes = [
         "It is not the strongest of the species that survives, nor the most intelligent; it is the one most adaptable to change.",
@@ -49,38 +49,39 @@ Interface.prototype.__constructor = function(config, gameInstance) {
         "The beauty of evolution is in its imperfections and its progress.",
         "From primordial soup to... well, this."
     ];
-
-    this._initializeUI();
-    this.setQuote();
-    setInterval(() => this.setQuote(), 60000);
 };
 
-Interface.prototype._initializeUI = function() {
+Interface.prototype.initializeUI = function() {
+
+    this.activeHistory = this.game.mapelites.history;
+
+    this.setQuote();
+    setInterval(() => this.setQuote(), 60000);
 
     this._setupSelectControl(this.mutationChanceSelectEl, "mutation_chance", true);
     this._setupSelectControl(this.mutationAmountSelectEl, "mutation_amount", true);
 
     if (this.renderFpsSelectEl) {
         for (let k = 0; k < this.renderFpsSelectEl.options.length; k++) {
-            if (parseInt(this.renderFpsSelectEl.options[k].value) === this.game.render_fps) {
+            if (parseInt(this.renderFpsSelectEl.options[k].value) === this.game.gameLoop.render_fps) {
                 this.renderFpsSelectEl.options[k].selected = true;
                 break;
             }
         }
         this.renderFpsSelectEl.onchange = () => {
-            this.game.setRenderFps(parseInt(this.renderFpsSelectEl.value));
+            this.game.gameLoop.setRenderFps(parseInt(this.renderFpsSelectEl.value));
         };
     }
 
     if (this.simulationFpsSelectEl) {
         for (let k = 0; k < this.simulationFpsSelectEl.options.length; k++) {
-            if (parseInt(this.simulationFpsSelectEl.options[k].value) === this.game.simulation_fps) {
+            if (parseInt(this.simulationFpsSelectEl.options[k].value) === this.game.gameLoop.simulation_fps) {
                 this.simulationFpsSelectEl.options[k].selected = true;
                 break;
             }
         }
         this.simulationFpsSelectEl.onchange = () => {
-            this.game.setSimulationFps(parseInt(this.simulationFpsSelectEl.value));
+            this.game.gameLoop.setSimulationFps(parseInt(this.simulationFpsSelectEl.value));
         };
     }
 
@@ -109,20 +110,25 @@ Interface.prototype._initializeUI = function() {
                     return;
                 }
             }
-            this.deselectMapElitesBin();
+            this._deselectMapElitesBin();
         }
     });
+
+    this.updateUI();
 };
+
+Interface.prototype.updateUI = function() {
+    this.updateWalkerCount();
+    this.updatePopulationList();
+    this.updateHistoryList();
+}
 
 Interface.prototype._setupSelectControl = function(selectElement, configPropertyKey, isFloat) {
     if (selectElement) {
-
-        let configValueToMatch = this.config[configPropertyKey];
-
+        let configValueToMatch = this.game.config[configPropertyKey];
         for (let k = 0; k < selectElement.options.length; k++) {
             let optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
             let currentConfigValue = isFloat ? parseFloat(configValueToMatch) : parseInt(configValueToMatch);
-
             if (isFloat ? Math.abs(optionValue - currentConfigValue) < 0.0001 : optionValue === currentConfigValue) {
                 selectElement.options[k].selected = true;
                 break;
@@ -130,20 +136,10 @@ Interface.prototype._setupSelectControl = function(selectElement, configProperty
         }
         selectElement.onchange = () => {
             let newValue = isFloat ? parseFloat(selectElement.value) : parseInt(selectElement.value);
-            this.config[configPropertyKey] = newValue;
-
-            const globalConfig = window.config || {};
-            globalConfig[configPropertyKey] = newValue;
-
+            this.game.config[configPropertyKey] = newValue;
             const lowerCaseConfigProperty = configPropertyKey.toLowerCase();
-            if (this.config[lowerCaseConfigProperty] !== undefined && lowerCaseConfigProperty !== configPropertyKey) {
-                 this.config[lowerCaseConfigProperty] = newValue;
-                 globalConfig[lowerCaseConfigProperty] = newValue;
-            }
-             if (globalConfig[configPropertyKey.toLowerCase()] !== undefined) {
-                 globalConfig[configPropertyKey.toLowerCase()] = newValue;
-            } else if (globalConfig[configPropertyKey] !== undefined) {
-                 globalConfig[configPropertyKey] = newValue;
+            if (this.game.config.hasOwnProperty(lowerCaseConfigProperty) && lowerCaseConfigProperty !== configPropertyKey) {
+                 this.game.config[lowerCaseConfigProperty] = newValue;
             }
         };
     }
@@ -178,10 +174,10 @@ Interface.prototype.updatePopulationList = function(force = false) {
     let now = performance.now();
     if (force === true || this.lastPopulationUpdate === undefined || now - this.lastPopulationUpdate >= 500) {
         this.lastPopulationUpdate = now;
-        if (this.populationListEl && globals.population) {
+        if (this.populationListEl && this.game.population) {
             this.populationListEl.innerHTML = "";
-            for (let k = 0; k < globals.population.walkers.length; k++) {
-                this._updateNameList(this.populationListEl, globals.population.walkers[k]);
+            for (let k = 0; k < this.game.population.walkers.length; k++) {
+                this._updateNameList(this.populationListEl, this.game.population.walkers[k]);
             }
         }
     }
@@ -192,10 +188,10 @@ Interface.prototype.updateHistoryList = function(force = false) {
     if (force === true || this.lastHistoryUpdate === undefined || now - this.lastHistoryUpdate >= 500) {
         this.lastHistoryUpdate = now;
 
-        if (this.historyListEl && globals.history) {
+        if (this.historyListEl && this.activeHistory) {
             this.historyListEl.innerHTML = "";
-            for (let k = 0; k < globals.history.walkers.length; k++) {
-                this._updateNameList(this.historyListEl, globals.history.walkers[k], true);
+            for (let k = 0; k < this.activeHistory.walkers.length; k++) {
+                this._updateNameList(this.historyListEl, this.activeHistory.walkers[k], true);
             }
         }
     }
@@ -205,8 +201,8 @@ Interface.prototype.updateWalkerCount = function() {
     let now = performance.now();
     if (this.lastWalkerCountUpdate === undefined || now - this.lastWalkerCountUpdate >= 500) {
         this.lastWalkerCountUpdate = now;
-        if (this.totalWalkersCreatedEl && globals.population) {
-            this.totalWalkersCreatedEl.innerHTML = globals.population.getTotalWalkersCreated();
+        if (this.totalWalkersCreatedEl && this.game.population) {
+            this.totalWalkersCreatedEl.innerHTML = this.game.population.getTotalWalkersCreated();
         }
     }
 };
@@ -217,26 +213,26 @@ Interface.prototype.setQuote = function() {
     }
 };
 
-Interface.prototype.deselectMapElitesBin = function() {
+Interface.prototype._deselectMapElitesBin = function() {
     if (this.selectedMapElitesBin === -1) return;
     this.selectedMapElitesBin = -1;
     this.currentSelectedGenePool = null;
-    if (globals.mapelites) {
-        globals.history = globals.mapelites.history;
+    if (this.game.mapelites) {
+        this.activeHistory = this.game.mapelites.history;
     }
-    if (globals.renderer) {
-        globals.renderer._drawMapElites();
-        globals.renderer._drawGenePool();
+    if (this.game.renderer) {
+        this.game.renderer._drawMapElites();
+        this.game.renderer._drawGenePool();
     }
     this.updateHistoryList(true);
 };
 
 Interface.prototype._findClickedMapElitesBin = function(event) {
-    if (!globals.mapelites || !globals.mapelites.bins || !this.mapelitesCanvasEl) {
+    if (!this.game.mapelites || !this.game.mapelites.bins || !this.mapelitesCanvasEl) {
         return null;
     }
-    const threshold = globals.mapelites.threshold;
-    const bins = globals.mapelites.bins;
+    const threshold = this.game.mapelites.threshold;
+    const bins = this.game.mapelites.bins;
     const canvas = this.mapelitesCanvasEl;
     const canvasWidth = canvas.width;
     const rect = canvas.getBoundingClientRect();
@@ -256,17 +252,17 @@ Interface.prototype._findClickedMapElitesBin = function(event) {
 };
 
 Interface.prototype.handleMapElitesClick = function(event) {
-    if (!globals.mapelites || !globals.mapelites.bins || globals.mapelites.bins.length === 0) {
+    if (!this.game.mapelites || !this.game.mapelites.bins || this.game.mapelites.bins.length === 0) {
         return;
     }
     const bin = this._findClickedMapElitesBin(event);
     if (bin) {
         this.selectedMapElitesBin = bin.index;
         this.currentSelectedGenePool = bin.genepool;
-        globals.history = bin.genepool.history;
-        if (globals.renderer) {
-            globals.renderer._drawMapElites();
-            globals.renderer._drawGenePool();
+        this.activeHistory = bin.genepool.history;
+        if (this.game.renderer) {
+            this.game.renderer._drawMapElites();
+            this.game.renderer._drawGenePool();
         }
         this.updateHistoryList(true);
     }
@@ -274,13 +270,13 @@ Interface.prototype.handleMapElitesClick = function(event) {
 
 Interface.prototype.handleMapElitesRightClick = function(event) {
     event.preventDefault();
-    if (!globals.mapelites || !globals.mapelites.bins) return;
+    if (!this.game.mapelites || !this.game.mapelites.bins) return;
 
     const bin = this._findClickedMapElitesBin(event);
     if (bin) {
         bin.enabled = !bin.enabled;
-        if (globals.renderer) {
-            globals.renderer._drawMapElites();
+        if (this.game.renderer) {
+            this.game.renderer._drawMapElites();
         }
     }
 };

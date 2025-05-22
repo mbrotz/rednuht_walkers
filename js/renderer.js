@@ -109,19 +109,19 @@ let Renderer = function() {
     this.__constructor.apply(this, arguments);
 }
 
-Renderer.prototype.__constructor = function(config, interfaceInstance) {
-    this.interface = interfaceInstance;
+Renderer.prototype.__constructor = function(gameInstance) {
+    this.game = gameInstance;
 
-    this.camera_start_x = config.camera_start_x;
-    this.camera_start_y = config.camera_start_y;
-    this.camera_max_zoom_factor = config.camera_max_zoom_factor;
-    this.walkers_origin_x = config.walkers_origin_x;
+    this.camera_start_x = this.game.config.camera_start_x;
+    this.camera_start_y = this.game.config.camera_start_y;
+    this.camera_max_zoom_factor = this.game.config.camera_max_zoom_factor;
+    this.walkers_origin_x = this.game.config.walkers_origin_x;
 
-    this.simCanvas = this.interface.simCanvasEl;
+    this.simCanvas = this.game.interface.simCanvasEl;
     this.simContext = this.simCanvas.getContext("2d");
-    this.mapelitesCanvas = this.interface.mapelitesCanvasEl;
+    this.mapelitesCanvas = this.game.interface.mapelitesCanvasEl;
     this.mapelitesContext = this.mapelitesCanvas.getContext("2d");
-    this.genepoolCanvas = this.interface.genepoolCanvasEl;
+    this.genepoolCanvas = this.game.interface.genepoolCanvasEl;
     this.genepoolContext = this.genepoolCanvas.getContext("2d");
 
     this.camera = new Camera({
@@ -132,8 +132,7 @@ Renderer.prototype.__constructor = function(config, interfaceInstance) {
 }
 
 Renderer.prototype.drawFrame = function() {
-
-    this._drawActualFrame(globals.floor, globals.population.walkers);
+    this._drawActualFrame(this.game.floor, this.game.population.walkers);
 }
 
 Renderer.prototype._drawActualFrame = function(floor, walkers) {
@@ -359,7 +358,7 @@ Renderer.prototype._drawRuler = function(floor) {
 };
 
 Renderer.prototype._drawMapElites = function() {
-    if (!this.mapelitesContext || !globals.mapelites || !this.interface) {
+    if (!this.mapelitesContext || !this.game.mapelites || !this.game.interface) {
         return;
     }
     let context = this.mapelitesContext;
@@ -367,7 +366,7 @@ Renderer.prototype._drawMapElites = function() {
     let canvasWidth = canvas.width;
     let canvasHeight = canvas.height;
     context.clearRect(0, 0, canvasWidth, canvasHeight);
-    const bins = globals.mapelites.bins;
+    const bins = this.game.mapelites.bins;
     if (!bins || bins.length === 0) {
         context.fillStyle = "#eee";
         context.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -379,7 +378,7 @@ Renderer.prototype._drawMapElites = function() {
         context.fillText("MAP-Elites Archive Empty", canvasWidth / 2, canvasHeight / 2 + 4);
         return;
     }
-    const range = globals.mapelites.range;
+    const range = this.game.mapelites.range;
     if (range <= 0) {
         context.fillStyle = "#ddd";
         context.fillRect(0,0, canvasWidth, canvasHeight);
@@ -397,7 +396,7 @@ Renderer.prototype._drawMapElites = function() {
             maxRecordScoreOverall = Math.max(maxRecordScoreOverall, bins[i].genepool.history.record_score);
         }
     }
-    const threshold = globals.mapelites.threshold;
+    const threshold = this.game.mapelites.threshold;
     for (let i = 0; i < bins.length; i++) {
         const bin = bins[i];
         const x_start = canvasWidth * (bin.low - threshold);
@@ -429,8 +428,8 @@ Renderer.prototype._drawMapElites = function() {
         }
     }
 
-    if (this.interface.selectedMapElitesBin > -1 && this.interface.selectedMapElitesBin < bins.length) {
-        const bin = bins[this.interface.selectedMapElitesBin];
+    if (this.game.interface.selectedMapElitesBin > -1 && this.game.interface.selectedMapElitesBin < bins.length) {
+        const bin = bins[this.game.interface.selectedMapElitesBin];
         if (bin) {
             const x_start = canvasWidth * (bin.low - threshold);
             const x_end = canvasWidth * (bin.high - threshold);
@@ -443,7 +442,7 @@ Renderer.prototype._drawMapElites = function() {
 }
 
 Renderer.prototype._drawGenePool = function() {
-    let genepool = this.interface ? this.interface.currentSelectedGenePool : null;
+    let genepool = this.game.interface ? this.game.interface.currentSelectedGenePool : null;
 
     if (!this.genepoolContext) {
         return;

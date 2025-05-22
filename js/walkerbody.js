@@ -3,9 +3,9 @@ let WalkerBody = function() {
     this.__constructor.apply(this, arguments);
 }
 
-WalkerBody.prototype.__constructor = function(owner, world) {
-    this.owner = owner;
-    this.world = world;
+WalkerBody.prototype.__constructor = function(ownerWalker) {
+    this.owner = ownerWalker;
+    this.world = this.owner.game.world;
 
     this.density = 106.2;
 

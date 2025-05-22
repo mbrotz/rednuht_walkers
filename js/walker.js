@@ -3,7 +3,8 @@ let Walker = function() {
     this.__constructor.apply(this, arguments);
 }
 
-Walker.prototype.__constructor = function(world, genome) {
+Walker.prototype.__constructor = function(gameInstance, genome) {
+    this.game = gameInstance;
     this.id = 0;
     this.is_eliminated = false;
     this.max_torso_position = 0;
@@ -14,11 +15,11 @@ Walker.prototype.__constructor = function(world, genome) {
     this.steps_without_improvement = 0;
     this.local_step_counter = 0;
     this.score = 0.0;
-    this.body = new WalkerBody(this, world);
+    this.body = new WalkerBody(this);
     this.initial_head_position = this.getHeadPosition();
     this.initial_torso_position = this.getTorsoPosition();
-    this.pressure_line_position = this.initial_torso_position - config.pressure_line_starting_offset;
-    this.pressure_line_speed = config.pressure_line_base_speed;
+    this.pressure_line_position = this.initial_torso_position - this.game.config.pressure_line_starting_offset;
+    this.pressure_line_speed = this.game.config.pressure_line_base_speed;
     if (genome) {
         this.genome = genome;
     } else {
@@ -47,11 +48,11 @@ Walker.prototype.getPressureLineDistance = function() {
 }
 
 Walker.prototype.isOffFloor = function() {
-    return globals.max_floor_x < this.getTorsoPosition();
+    return this.game.max_floor_x < this.getTorsoPosition();
 }
 
 Walker.prototype.isSlacker = function() {
-    return this.steps_without_improvement >= config.max_steps_without_improvement
+    return this.steps_without_improvement >= this.game.config.max_steps_without_improvement
 }
 
 Walker.prototype.destroyBody = function() {
@@ -64,7 +65,7 @@ Walker.prototype.destroyBody = function() {
 Walker.prototype.updateMetrics = function() {
     if (this.local_step_counter > 0) {
         let torso_position = this.getTorsoPosition();
-        let forward_change = Math.max(0, torso_position - this.max_torso_position) * config.time_step;
+        let forward_change = Math.max(0, torso_position - this.max_torso_position) * this.game.config.time_step;
         this.max_torso_position = Math.max(this.max_torso_position, torso_position);
         if (forward_change > 0) {
             this.mean_head_height_sum += this.getNormalizedHeadPosition();
@@ -81,7 +82,7 @@ Walker.prototype.updateMetrics = function() {
 
 Walker.prototype.updatePressureLine = function() {
     this.pressure_line_position += this.pressure_line_speed;
-    this.pressure_line_speed += config.pressure_line_acceleration;
+    this.pressure_line_speed += this.game.config.pressure_line_acceleration;
 }
 
 Walker.prototype.updateEliminated = function() {

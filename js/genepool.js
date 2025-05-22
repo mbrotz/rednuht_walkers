@@ -3,19 +3,20 @@ let GenePool = function() {
     this.__constructor.apply(this, arguments);
 }
 
-GenePool.prototype.__constructor = function(config) {
-    this.threshold = config.genepool_threshold;
-    this.range_decay = config.genepool_range_decay;
+GenePool.prototype.__constructor = function(gameInstance) {
+    this.game = gameInstance;
+    this.threshold = this.game.config.genepool_threshold;
+    this.range_decay = this.game.config.genepool_range_decay;
     this.range = 1.0 - this.threshold;
-    this.num_tiers = config.genepool_tiers;
-    this.tier_capacity = config.genepool_tier_capacity;
-    this.tier_selection_pressure = config.genepool_tier_selection_pressure;
-    this.gene_mutation_chance = config.genepool_gene_mutation_chance;
-    this.gene_mutation_strength = config.genepool_gene_mutation_strength;
+    this.num_tiers = this.game.config.genepool_tiers;
+    this.tier_capacity = this.game.config.genepool_tier_capacity;
+    this.tier_selection_pressure = this.game.config.genepool_tier_selection_pressure;
+    this.gene_mutation_chance = this.game.config.genepool_gene_mutation_chance;
+    this.gene_mutation_strength = this.game.config.genepool_gene_mutation_strength;
     this.start_score = 0.0;
     this.num_walkers = 0;
     this.tiers = [];
-    this.history = new History(config);
+    this.history = new History(this.game);
 
     let current_range = this.range;
     for (let i = 0; i < this.num_tiers; i++) {
@@ -339,13 +340,13 @@ GenePool.prototype.selectParentGenome = function() {
 };
 
 GenePool.prototype.createRandomWalker = function() {
-    return new Walker(globals.world);
+    return new Walker(this.game);
 }
 
 GenePool.prototype.createMutatedWalker = function() {
     let genome = this.selectParentGenome();
     if (genome) {
-        return new Walker(globals.world, this._mutateGenome(genome));
+        return new Walker(this.game, this._mutateGenome(genome));
     }
     return this.createRandomWalker();
 }

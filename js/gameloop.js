@@ -3,12 +3,13 @@ let GameLoop = function() {
     this.__constructor.apply(this, arguments);
 }
 
-GameLoop.prototype.__constructor = function(config) {
-    this.time_step = config.time_step;
-    this.simulation_fps = config.simulation_fps;
-    this.render_fps = config.render_fps;
-    this.velocity_iterations = config.velocity_iterations;
-    this.position_iterations = config.position_iterations;
+GameLoop.prototype.__constructor = function(gameInstance) {
+    this.game = gameInstance;
+    this.time_step = this.game.config.time_step;
+    this.simulation_fps = this.game.config.simulation_fps;
+    this.render_fps = this.game.config.render_fps;
+    this.velocity_iterations = this.game.config.velocity_iterations;
+    this.position_iterations = this.game.config.position_iterations;
     this.paused = (this.simulation_fps === 0);
     this.lastTimestamp = 0;
     this.simulationAccumulator = 0;
@@ -22,59 +23,30 @@ GameLoop.prototype.__constructor = function(config) {
 
     this.MAX_RECENT_STEP_DURATIONS = 10;
 
-    globals.world = new b2.World(new b2.Vec2(0, -10));
-    globals.world.SetContactListener(new HeadFloorContactListener());
-    globals.floor = this._createFloor(config);
-    globals.population = new Population(config);
-    globals.mapelites = new MapElites(config);
-
-    globals.history = globals.mapelites.history;
-
-    globals.interface = new Interface(config, this);
-
-    globals.renderer = new Renderer(config, globals.interface);
-
     this.paused = (this.simulation_fps === 0);
 
-    globals.population.initPopulation();
-    globals.interface.updateWalkerCount();
-    globals.interface.updatePopulationList();
-
-    if (!this.paused || this.render_fps > 0) {
-        this.animationFrameId = requestAnimationFrame(this._mainLoop.bind(this));
-    }
 }
 
-GameLoop.prototype._createFloor = function(config) {
-    let body_def = new b2.BodyDef();
-    let body = globals.world.CreateBody(body_def);
-    let fix_def = new b2.FixtureDef();
-    fix_def.friction = 0.8;
-    fix_def.shape = new b2.ChainShape();
-    let edges = [
-        new b2.Vec2(-3.5, -0.16),
-        new b2.Vec2(2.5, -0.16)
-    ];
-    for(let k = 2; k < config.max_floor_tiles; k++) {
-        edges.push(new b2.Vec2(edges[edges.length-1].x + 1,-0.16));
+GameLoop.prototype.startMainLoop = function() {
+    if (!this.paused || this.render_fps > 0) {
+
+        if (this.animationFrameId === null) {
+            this.lastTimestamp = 0;
+            this.simulationAccumulator = 0;
+            this.renderAccumulator = 0;
+        }
+        this.animationFrameId = requestAnimationFrame(this._mainLoop.bind(this));
     }
-    globals.max_floor_x = edges[edges.length-1].x;
-    fix_def.shape.CreateChain(edges, edges.length);
-    let floorFixtureInstance = body.CreateFixture(fix_def);
-    floorFixtureInstance.SetUserData({ isFloor: true });
-    return body;
 }
 
 GameLoop.prototype._simulationStep = function() {
     const stepStartTime = performance.now();
 
-    globals.population.simulationStep();
-    globals.world.Step(this.PHYSICS_FIXED_DELTA_TIME_SECONDS, this.velocity_iterations, this.position_iterations);
+    this.game.population.simulationStep();
+    this.game.world.Step(this.PHYSICS_FIXED_DELTA_TIME_SECONDS, this.velocity_iterations, this.position_iterations);
 
-    if (globals.interface) {
-        globals.interface.updateWalkerCount();
-        globals.interface.updatePopulationList();
-        globals.interface.updateHistoryList();
+    if (this.game.interface) {
+        this.game.interface.updateUI();
     }
 
     const stepEndTime = performance.now();
@@ -145,8 +117,8 @@ GameLoop.prototype._mainLoop = function(currentTimestamp) {
         this.renderAccumulator += deltaTimeMs;
 
         if (this.renderAccumulator >= renderIntervalMs) {
-            if (globals.renderer) {
-                globals.renderer.drawFrame();
+            if (this.game.renderer) {
+                this.game.renderer.drawFrame();
             }
             this.renderAccumulator %= renderIntervalMs;
         }
@@ -156,14 +128,13 @@ GameLoop.prototype._mainLoop = function(currentTimestamp) {
 GameLoop.prototype.setRenderFps = function(fps) {
     const oldRenderFps = this.render_fps;
     this.render_fps = fps;
+    this.game.config.render_fps = fps;
 
     if (fps > 0 && oldRenderFps === 0) {
         this.renderAccumulator = 0;
         if (this.animationFrameId === null) {
             console.log("Restarting mainLoop due to render_fps change.");
-            this.lastTimestamp = 0;
-            this.simulationAccumulator = 0;
-            this.animationFrameId = requestAnimationFrame(this._mainLoop.bind(this));
+            this.startMainLoop();
         }
     } else if (fps === 0 && this.simulation_fps === 0) {
         if (this.animationFrameId !== null) {
@@ -177,19 +148,18 @@ GameLoop.prototype.setRenderFps = function(fps) {
 GameLoop.prototype.setSimulationFps = function(fps) {
     const oldSimFps = this.simulation_fps;
     this.simulation_fps = fps;
+    this.game.config.simulation_fps = fps;
 
     if (fps !== 0) {
         if (this.paused || oldSimFps === 0) {
             this.paused = false;
-            this.lastTimestamp = 0;
-            this.simulationAccumulator = 0;
 
             this.recentStepDurations = [];
             this.avgStepDurationMs = this.PHYSICS_FIXED_DELTA_TIME_MS;
 
             if (this.animationFrameId === null) {
                 console.log("Restarting mainLoop due to simulation_fps change from 0/paused.");
-                this.animationFrameId = requestAnimationFrame(this._mainLoop.bind(this));
+                this.startMainLoop();
             }
         }
     } else {

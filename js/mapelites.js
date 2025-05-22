@@ -3,13 +3,14 @@ let MapElites = function() {
     this.__constructor.apply(this, arguments);
 }
 
-MapElites.prototype.__constructor = function(config) {
-    this.history = new History(config);
-    this.threshold = config.mapelites_threshold;
+MapElites.prototype.__constructor = function(gameInstance) {
+    this.game = gameInstance;
+    this.history = new History(this.game);
+    this.threshold = this.game.config.mapelites_threshold;
     this.range = 1.0 - this.threshold;
-    this.range_decay = config.mapelites_range_decay;
-    this.bin_selection_pressure = config.mapelites_bin_selection_pressure;
-    this.num_height_bins = config.mapelites_height_bins;
+    this.range_decay = this.game.config.mapelites_range_decay;
+    this.bin_selection_pressure = this.game.config.mapelites_bin_selection_pressure;
+    this.num_height_bins = this.game.config.mapelites_height_bins;
     this.bins = [];
     let current_range = this.range;
     for (let i = 0; i < this.num_height_bins; i++) {
@@ -19,7 +20,7 @@ MapElites.prototype.__constructor = function(config) {
             range: current_range,
             low: 0.0,
             high: 0.0,
-            genepool: new GenePool(config),
+            genepool: new GenePool(this.game),
         };
         this.bins.push(bin);
         current_range *= this.range_decay;
@@ -129,7 +130,7 @@ MapElites.prototype.addWalker = function(walker) {
 }
 
 MapElites.prototype.createRandomWalker = function() {
-    return new Walker(globals.world);
+    return new Walker(this.game);
 }
 
 MapElites.prototype.createMutatedWalker = function() {

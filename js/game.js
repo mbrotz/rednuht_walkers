@@ -39,18 +39,6 @@ config = {
     head_floor_collision_kills: true,
 };
 
-globals = {
-    game: null,
-    world: null,
-    floor: null,
-    population: null,
-    mapelites: null,
-
-    history: null,
-    interface: null,
-
-};
-
 function gaussianRandom(mean = 0, stdev = 1) {
     const u = 1 - Math.random();
     const v = Math.random();
@@ -58,20 +46,88 @@ function gaussianRandom(mean = 0, stdev = 1) {
     return z * stdev + mean;
 }
 
-function HeadFloorContactListener() {}
-HeadFloorContactListener.prototype = new b2.ContactListener();
-HeadFloorContactListener.prototype.constructor = HeadFloorContactListener;
+let Game = function() {
+    this.__constructor.apply(this, arguments);
+}
 
-HeadFloorContactListener.prototype.BeginContact = function(contact) {
-    if (config.head_floor_collision_kills) {
-        let userDataA = contact.GetFixtureA().GetUserData();
-        let userDataB = contact.GetFixtureB().GetUserData();
-        if (userDataA && userDataB) {
-            if (userDataA.isHead && userDataB.isFloor) {
-                userDataA.walker.is_eliminated = true;
-            } else if (userDataA.isFloor && userDataB.isHead) {
-                userDataB.walker.is_eliminated = true;
-            }
+Game.prototype.__constructor = function(config) {
+    this.config = config;
+    this._createWorld();
+    this._createFloor();
+    this._createMapElites();
+    this._createPopulation();
+    this._createInterface();
+    this._createRenderer();
+    this._createGameLoop();
+};
+
+Game.prototype._createWorld = function() {
+    this.world = new b2.World(new b2.Vec2(0, -10));
+
+    if (this.config.head_floor_collision_kills) {
+        let HeadFloorContactListener = function(gameInstance) {
+
         }
+        HeadFloorContactListener.prototype = new b2.ContactListener();
+        HeadFloorContactListener.prototype.constructor = HeadFloorContactListener;
+
+        HeadFloorContactListener.prototype.BeginContact = function(contact) {
+            let userDataA = contact.GetFixtureA().GetUserData();
+            let userDataB = contact.GetFixtureB().GetUserData();
+            if (userDataA && userDataB) {
+                if (userDataA.isHead && userDataB.isFloor) {
+                    userDataA.walker.is_eliminated = true;
+                } else if (userDataA.isFloor && userDataB.isHead) {
+                    userDataB.walker.is_eliminated = true;
+                }
+            }
+        };
+        this.world.SetContactListener(new HeadFloorContactListener(this));
     }
+};
+
+Game.prototype._createFloor = function() {
+    let body_def = new b2.BodyDef();
+    let body = this.world.CreateBody(body_def);
+    let fix_def = new b2.FixtureDef();
+    fix_def.friction = 0.8;
+    fix_def.shape = new b2.ChainShape();
+    let edges = [
+        new b2.Vec2(-3.5, -0.16),
+        new b2.Vec2(2.5, -0.16)
+    ];
+    for(let k = 2; k < this.config.max_floor_tiles; k++) {
+        edges.push(new b2.Vec2(edges[edges.length-1].x + 1,-0.16));
+    }
+    this.max_floor_x = edges[edges.length-1].x;
+    fix_def.shape.CreateChain(edges, edges.length);
+    let floorFixtureInstance = body.CreateFixture(fix_def);
+    floorFixtureInstance.SetUserData({ isFloor: true });
+    this.floor = body;
+};
+
+Game.prototype._createInterface = function() {
+    this.interface = new Interface(this);
+};
+
+Game.prototype._createMapElites = function() {
+    this.mapelites = new MapElites(this);
+};
+
+Game.prototype._createPopulation = function() {
+    this.population = new Population(this);
+};
+
+Game.prototype._createRenderer = function() {
+    this.renderer = new Renderer(this);
+};
+
+Game.prototype._createGameLoop = function() {
+    this.gameLoop = new GameLoop(this);
+};
+
+Game.prototype.start = function() {
+    this.population.initPopulation();
+    this.interface.initializeUI();
+    this.gameLoop.startMainLoop();
 };

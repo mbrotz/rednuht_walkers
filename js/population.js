@@ -3,8 +3,9 @@ let Population = function() {
     this.__constructor.apply(this, arguments);
 }
 
-Population.prototype.__constructor = function(config) {
-    this.population_size = config.population_size;
+Population.prototype.__constructor = function(gameInstance) {
+    this.game = gameInstance;
+    this.population_size = this.game.config.population_size;
     this.walkers = [];
     this.next_walker_id = 1;
 }
@@ -19,7 +20,7 @@ Population.prototype.getTotalWalkersCreated = function() {
 
 Population.prototype.initPopulation = function() {
     while (this.walkers.length < this.population_size) {
-        let walker = globals.mapelites.createRandomWalker();
+        let walker = this.game.mapelites.createRandomWalker();
         walker.id = this.getNextWalkerId();
         this.walkers.push(walker);
     }
@@ -29,9 +30,9 @@ Population.prototype.simulationStep = function() {
     for (let k = 0; k < this.walkers.length; k++) {
         let walker = this.walkers[k];
         if (walker.is_eliminated) {
-            globals.mapelites.addWalker(walker);
+            this.game.mapelites.addWalker(walker);
             walker.destroyBody();
-            walker = globals.mapelites.createMutatedWalker()
+            walker = this.game.mapelites.createMutatedWalker()
             walker.id = this.getNextWalkerId();
             this.walkers[k] = walker;
         }
@@ -43,8 +44,9 @@ let History = function() {
     this.__constructor.apply(this, arguments);
 }
 
-History.prototype.__constructor = function(config) {
-    this.history_size = config.history_size;
+History.prototype.__constructor = function(gameInstance) {
+    this.game = gameInstance;
+    this.history_size = this.game.config.history_size;
     this.walkers = [];
     this.record_score = 0.0;
     this.record_holder = null;
