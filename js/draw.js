@@ -21,7 +21,7 @@ Camera.prototype._calculateMinMax = function(walkers) {
         if (walker && walker.body && !walker.is_eliminated) {
             let body = walker.body;
             activeWalkerFound = true;
-            let dist = body.torso.upper_torso.GetPosition();
+            let dist = body.torso.upperTorso.GetPosition();
             min_x = Math.min(min_x, dist.x);
             max_x = Math.max(max_x, dist.x);
             let current_head_y_for_zoom = body.head.head.GetPosition().y;

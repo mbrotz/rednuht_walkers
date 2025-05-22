@@ -39,7 +39,7 @@ Walker.prototype.getNormalizedHeadPosition = function() {
 }
 
 Walker.prototype.getTorsoPosition = function() {
-    return this.body.torso.upper_torso.GetPosition().x;
+    return this.body.torso.upperTorso.GetPosition().x;
 }
 
 Walker.prototype.getPressureLineDistance = function() {
