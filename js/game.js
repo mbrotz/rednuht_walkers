@@ -1,6 +1,6 @@
 ﻿config = {
-    time_step: 60,
-    simulation_fps: 60,
+    time_step: 60, // Represents the desired physics steps per second for the fixed timestep
+    simulation_fps: 60, // Can be a number, 0 for pause, or -1 for "max speed"
     render_fps: 60,
     velocity_iterations: 8,
     position_iterations: 3,
@@ -40,7 +40,30 @@
 
 globals = {
     selectedMapElitesBin: -1,
+    paused: false, // Will be controlled by simulation_fps setting
+    world: null,
+    floor: null,
+    population: null,
+    mapelites: null,
+    genepool: null,
+    history: null,
+    // render_interval and simulation_interval are no longer needed
 };
+
+// --- requestAnimationFrame Loop Variables ---
+let lastTimestamp = 0;
+let simulationAccumulator = 0;
+let renderAccumulator = 0;
+let animationFrameId = null;
+
+const PHYSICS_FIXED_DELTA_TIME_SECONDS = 1.0 / config.time_step; // e.g., 1/60 seconds
+const PHYSICS_FIXED_DELTA_TIME_MS = PHYSICS_FIXED_DELTA_TIME_SECONDS * 1000; // e.g., 16.666 ms
+
+// For "Max Speed" mode step timing
+let recentStepDurations = [];
+const MAX_RECENT_STEP_DURATIONS = 10;
+let avgStepDurationMs = PHYSICS_FIXED_DELTA_TIME_MS; // Initial estimate
+
 
 function gaussianRandom(mean = 0, stdev = 1) {
     const u = 1 - Math.random();
@@ -78,7 +101,6 @@ function createFloor() {
         new b2.Vec2(2.5, -0.16)
     ];
     for(let k = 2; k < config.max_floor_tiles; k++) {
-        let ratio = k/config.max_floor_tiles;
         edges.push(new b2.Vec2(edges[edges.length-1].x + 1,-0.16));
     }
     globals.max_floor_x = edges[edges.length-1].x;
@@ -92,22 +114,28 @@ gameInit = function() {
     globals.world = new b2.World(new b2.Vec2(0, -10));
     globals.world.SetContactListener(new HeadFloorContactListener());
     globals.floor = createFloor();
-
     globals.population = new Population(config);
     globals.mapelites = new MapElites(config);
     globals.genepool = null;
     globals.history = globals.mapelites.history;
 
     drawInit();
-    interfaceSetup();
+    interfaceSetup(); // This will set initial globals.paused based on config.simulation_fps
 
     setQuote();
-    setInterval(setQuote, 60000);
+    setInterval(setQuote, 60000); // Quote interval can remain
 
-    globals.simulation_interval = setInterval(simulationStep, Math.round(1000/config.simulation_fps));
-    if (config.render_fps > 0) {
-        globals.render_interval = setInterval(drawFrame, Math.round(1000/config.render_fps));
+    // Initialize loop state
+    lastTimestamp = 0;
+    simulationAccumulator = 0;
+    renderAccumulator = 0;
+    globals.paused = (config.simulation_fps === 0); // Set initial pause state
+
+    // Start the main loop if not initially paused
+    if (!globals.paused || config.render_fps > 0) { // Start if sim active OR rendering is on
+        animationFrameId = requestAnimationFrame(mainLoop);
     }
+
 
     globals.population.initPopulation();
     updateWalkerCount();
@@ -115,11 +143,98 @@ gameInit = function() {
 }
 
 simulationStep = function() {
+    const stepStartTime = performance.now();
+
     globals.population.simulationStep();
-    globals.world.Step(1/config.time_step, config.velocity_iterations, config.position_iterations);
-    globals.world.ClearForces();
+    globals.world.Step(PHYSICS_FIXED_DELTA_TIME_SECONDS, config.velocity_iterations, config.position_iterations);
+    // globals.world.ClearForces(); // Box2D typically handles this or it's done before applying new forces.
+
     updateWalkerCount();
     updatePopulationList();
     updateHistoryList();
+
+    const stepEndTime = performance.now();
+    recentStepDurations.push(stepEndTime - stepStartTime);
+    if (recentStepDurations.length > MAX_RECENT_STEP_DURATIONS) {
+        recentStepDurations.shift();
+    }
+    if (recentStepDurations.length > 0) {
+        avgStepDurationMs = recentStepDurations.reduce((a, b) => a + b, 0) / recentStepDurations.length;
+    }
 }
 
+function mainLoop(currentTimestamp) {
+    animationFrameId = requestAnimationFrame(mainLoop);
+
+    if (lastTimestamp === 0) { // First frame initialization
+        lastTimestamp = currentTimestamp;
+        return;
+    }
+
+    let deltaTimeMs = currentTimestamp - lastTimestamp;
+    lastTimestamp = currentTimestamp;
+
+    // Cap deltaTime to prevent "spiral of death" on long tab inactivations
+    const MAX_DELTA_TIME_MS_CAP = 250; // Max 1/4 second to process
+    if (deltaTimeMs > MAX_DELTA_TIME_MS_CAP) {
+        console.warn(`DeltaTime capped from ${deltaTimeMs.toFixed(2)}ms to ${MAX_DELTA_TIME_MS_CAP}ms`);
+        deltaTimeMs = MAX_DELTA_TIME_MS_CAP;
+    }
+
+    // --- Simulation Logic ---
+    if (!globals.paused) {
+        if (config.simulation_fps === -1) { // "Max Speed" mode
+            const frameStartTime = performance.now();
+            let stepsThisFrame = 0;
+            // Try to use about 95% of the frame time for simulation to leave buffer
+            const timeBudgetMs = deltaTimeMs * 0.95;
+
+            while (true) {
+                simulationStep();
+                stepsThisFrame++;
+                const elapsedInFrameProcessing = performance.now() - frameStartTime;
+                if (elapsedInFrameProcessing + avgStepDurationMs >= timeBudgetMs) {
+                    // If estimated next step exceeds budget, stop
+                    break;
+                }
+                // Safety break if avgStepDurationMs is somehow 0 or too small
+                if (avgStepDurationMs < 0.1 && elapsedInFrameProcessing >= timeBudgetMs) {
+                     break;
+                }
+            }
+            // console.log(`Max Speed: ${stepsThisFrame} steps.`);
+            simulationAccumulator = 0; // Not used in this mode
+
+        } else if (config.simulation_fps > 0) { // Target FPS mode
+            simulationAccumulator += deltaTimeMs;
+            let physicsStepsThisFrame = 0;
+            // Safety cap: Max physics steps to prevent freezing if sim_fps is high & machine is slow
+            const maxIter = Math.max(10, Math.ceil(config.simulation_fps / 15) + 5); // Heuristic cap
+
+            while (simulationAccumulator >= PHYSICS_FIXED_DELTA_TIME_MS && physicsStepsThisFrame < maxIter) {
+                simulationStep();
+                simulationAccumulator -= PHYSICS_FIXED_DELTA_TIME_MS;
+                physicsStepsThisFrame++;
+            }
+            if (physicsStepsThisFrame >= maxIter && simulationAccumulator >= PHYSICS_FIXED_DELTA_TIME_MS) {
+                console.warn(`Max physics steps (${maxIter}) per frame reached in target FPS mode. Simulation might be falling behind target.`);
+                // Optionally clamp accumulator to prevent it from growing indefinitely if system can't keep up
+                // simulationAccumulator = PHYSICS_FIXED_DELTA_TIME_MS;
+            }
+        }
+        // If config.simulation_fps is 0, it's handled by globals.paused (no simulation steps).
+    } else { // globals.paused is true
+        simulationAccumulator = 0; // Reset accumulator when paused
+    }
+
+    // --- Rendering Logic ---
+    if (config.render_fps > 0) {
+        const renderIntervalMs = 1000 / config.render_fps;
+        renderAccumulator += deltaTimeMs;
+
+        if (renderAccumulator >= renderIntervalMs) {
+            drawFrame();
+            renderAccumulator %= renderIntervalMs; // Or just subtract renderIntervalMs
+        }
+    }
+}
