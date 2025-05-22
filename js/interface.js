@@ -1,4 +1,5 @@
-﻿quotes = [
+﻿
+quotes = [
     "It is not the strongest of the species that survives, nor the most intelligent; it is the one most adaptable to change.",
     "Man selects only for his own good: Nature only for that of the being which she tends.",
     "Endless forms most beautiful and most wonderful have been, and are being, evolved.",
@@ -20,63 +21,6 @@
     "The beauty of evolution is in its imperfections and its progress.",
     "From primordial soup to... well, this."
 ];
-
-setRenderFps = function(fps) {
-    const oldRenderFps = config.render_fps;
-    config.render_fps = fps;
-
-    if (fps > 0 && oldRenderFps === 0) { // If rendering was off and is now turned on
-        renderAccumulator = 0; // Reset accumulator to draw immediately if needed
-        if (animationFrameId === null) { // If main loop was completely stopped
-            console.log("Restarting mainLoop due to render_fps change.");
-            lastTimestamp = 0; // Reset to avoid large deltaTime jump
-            simulationAccumulator = 0; // Reset sim accumulator too
-            animationFrameId = requestAnimationFrame(mainLoop);
-        }
-    } else if (fps === 0 && config.simulation_fps === 0) { // If rendering is turned off AND simulation is paused
-        if (animationFrameId !== null) {
-            console.log("Stopping mainLoop completely (render and sim off).");
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
-    }
-    // The mainLoop will naturally adapt to other changes in config.render_fps
-}
-
-setSimulationFps = function(fps) { // fps can be number (e.g., 60, 30, 0) or -1 for "Max Speed"
-    const oldSimFps = config.simulation_fps;
-    config.simulation_fps = fps;
-
-    if (fps !== 0) { // Simulation is active (either target FPS or Max Speed)
-        if (globals.paused || oldSimFps === 0) { // If it was paused or just starting from 0 FPS
-            globals.paused = false;
-            // Reset accumulators and timestamp to avoid large jumps/missed steps
-            // especially when unpausing or changing from 0 FPS.
-            lastTimestamp = 0; // Crucial to avoid a massive deltaTime on unpause
-            simulationAccumulator = 0;
-            // renderAccumulator = 0; // Optionally reset render acc. too, or let it continue
-            recentStepDurations = []; // Reset avg step duration measurement
-            avgStepDurationMs = PHYSICS_FIXED_DELTA_TIME_MS;
-
-
-            if (animationFrameId === null) { // If the main rAF loop was completely stopped
-                console.log("Restarting mainLoop due to simulation_fps change from 0/paused.");
-                animationFrameId = requestAnimationFrame(mainLoop);
-            }
-        }
-        // If it was already running (oldSimFps > 0 or oldSimFps === -1),
-        // the mainLoop will adapt to the new config.simulation_fps.
-    } else { // fps === 0, so PAUSE simulation
-        globals.paused = true;
-        // If rendering is also off, we can stop the rAF loop entirely.
-        if (config.render_fps === 0 && animationFrameId !== null) {
-            console.log("Stopping mainLoop completely (sim paused and render off).");
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
-        // The mainLoop's simulation part will now be skipped due to globals.paused.
-    }
-}
 
 updateNameList = function(name_list, walker, is_history = false) {
     let tr = document.createElement("TR");
@@ -147,18 +91,14 @@ function setupSelectControl(elementId, configProperty, isFloat) {
     if (selectElement) {
         let lowerCaseConfigProperty = configProperty.toLowerCase();
 
-        // Ensure config keys are consistently lowercase if that's the convention
-        // or handle both cases if property names might vary in casing.
         let configValueToMatch = config[lowerCaseConfigProperty];
         if (configValueToMatch === undefined && config[configProperty] !== undefined) {
              configValueToMatch = config[configProperty];
         }
 
-
         for (let k = 0; k < selectElement.options.length; k++) {
             let optionValue = isFloat ? parseFloat(selectElement.options[k].value) : parseInt(selectElement.options[k].value);
             let currentConfigValue = isFloat ? parseFloat(configValueToMatch) : parseInt(configValueToMatch);
-
 
             if (isFloat ? Math.abs(optionValue - currentConfigValue) < 0.0001 : optionValue === currentConfigValue) {
                 selectElement.options[k].selected = true;
@@ -167,7 +107,6 @@ function setupSelectControl(elementId, configProperty, isFloat) {
         }
         selectElement.onchange = function() {
             let newValue = isFloat ? parseFloat(this.value) : parseInt(this.value);
-            // Update config, ensuring consistency if multiple cases were used
             config[lowerCaseConfigProperty] = newValue;
             if (config[configProperty] !== undefined && lowerCaseConfigProperty !== configProperty) {
                 config[configProperty] = newValue;
@@ -176,35 +115,33 @@ function setupSelectControl(elementId, configProperty, isFloat) {
     }
 }
 
-interfaceSetup = function() {
+interfaceSetup = function(gameLoopInstance) {
     setupSelectControl("mutation_chance", "mutation_chance", true);
     setupSelectControl("mutation_amount", "mutation_amount", true);
-    setupSelectControl("motor_noise", "motor_noise", true);
 
     let render_fps_sel = document.getElementById("render_fps");
     if (render_fps_sel) {
         for (let k = 0; k < render_fps_sel.options.length; k++) {
-            if (parseInt(render_fps_sel.options[k].value) === config.render_fps) {
+            if (parseInt(render_fps_sel.options[k].value) === gameLoopInstance.render_fps) {
                 render_fps_sel.options[k].selected = true;
                 break;
             }
         }
         render_fps_sel.onchange = function() {
-            setRenderFps(parseInt(this.value));
+            gameLoopInstance.setRenderFps(parseInt(this.value));
         }
     }
 
     let simulation_fps_sel = document.getElementById("simulation_fps");
     if (simulation_fps_sel) {
         for (let k = 0; k < simulation_fps_sel.options.length; k++) {
-            // config.simulation_fps can be -1 for "Max"
-            if (parseInt(simulation_fps_sel.options[k].value) === config.simulation_fps) {
+            if (parseInt(simulation_fps_sel.options[k].value) === gameLoopInstance.simulation_fps) {
                 simulation_fps_sel.options[k].selected = true;
                 break;
             }
         }
         simulation_fps_sel.onchange = function() {
-            setSimulationFps(parseInt(this.value));
+            gameLoopInstance.setSimulationFps(parseInt(this.value));
         }
     }
     
@@ -251,7 +188,6 @@ function deselectMapElitesBin() {
 
 function findClickedMapElitesBin(event) {
     const threshold = globals.mapelites.threshold;
-    // const range = globals.mapelites.range; // Not directly used for click detection
     const bins = globals.mapelites.bins;
     const canvas = globals.mapelites_canvas;
     const canvasWidth = canvas.width;
@@ -259,10 +195,8 @@ function findClickedMapElitesBin(event) {
     const clickX = event.clientX - rect.left;
     for (let i = 0; i < bins.length; i++) {
         const bin = bins[i];
-        // Ensure bin.low and bin.high are relative to the mapelites threshold for correct mapping
-        const binRangeStart = bin.low - threshold; // This should be >= 0
-        const binRangeEnd = bin.high - threshold;   // This should be > binRangeStart
-
+        const binRangeStart = bin.low - threshold;
+        const binRangeEnd = bin.high - threshold;
         const startX = canvasWidth * binRangeStart;
         const endX = canvasWidth * binRangeEnd;
 
@@ -281,15 +215,15 @@ function handleMapElitesClick(event) {
     if (bin) {
         globals.selectedMapElitesBin = bin.index;
         globals.genepool = bin.genepool;
-        globals.history = bin.genepool.history; // Switch history view to the selected bin's history
+        globals.history = bin.genepool.history;
         drawMapElites();
         drawGenePool();
-        updateHistoryList(true); // Force update of history list
+        updateHistoryList(true);
     }
 }
 
 function handleMapElitesRightClick(event) {
-    event.preventDefault(); // Prevent browser context menu
+    event.preventDefault();
     const bin = findClickedMapElitesBin(event);
     if (bin) {
         bin.enabled = !bin.enabled;

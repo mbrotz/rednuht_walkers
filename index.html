@@ -11,11 +11,12 @@
     <script src="js/genepool.js"></script>
     <script src="js/mapelites.js"></script>
     <script src="js/game.js"></script>
+    <script src="js/gameloop.js"></script>
     <script src="js/draw.js"></script>
     <script src="js/interface.js"></script>
     <script>
         function init() {
-            gameInit();
+            globals.game = new GameLoop(config);
         }
         window.addEventListener("load", init, false);
     </script>
