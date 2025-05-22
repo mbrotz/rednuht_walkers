@@ -1,73 +1,55 @@
-class GenePool {
+class GenePool extends Binning {
     constructor(gameInstance) {
-        this.game = gameInstance;
-        this.threshold = this.game.config.genepool_threshold;
-        this.range_decay = this.game.config.genepool_range_decay;
-        this.range = 1.0 - this.threshold;
-        this.num_tiers = this.game.config.genepool_tiers;
-        this.tier_capacity = this.game.config.genepool_tier_capacity;
-        this.tier_selection_pressure = this.game.config.genepool_tier_selection_pressure;
+        super(
+            gameInstance,
+            gameInstance.config.genepool_threshold,
+            gameInstance.config.genepool_range_decay,
+            gameInstance.config.genepool_bins,
+            gameInstance.config.genepool_bin_selection_pressure
+        );
+        this.bin_capacity = this.game.config.genepool_bin_capacity;
         this.gene_mutation_chance = this.game.config.genepool_gene_mutation_chance;
         this.gene_mutation_strength = this.game.config.genepool_gene_mutation_strength;
         this.start_score = 0.0;
         this.num_walkers = 0;
-        this.tiers = [];
         this.history = new History(this.game);
-
-        let current_range = this.range;
-        for (let i = 0; i < this.num_tiers; i++) {
-            this.tiers.push({
-                index: i,
-                is_lowest: i == 0,
-                is_highest: i == this.num_tiers - 1,
-                range: current_range,
-                low: 0.0,
-                high: 0.0,
-                low_score: 0.0,
-                high_score: 0.0,
-                sum_score: 0.0,
-                mean_score: 0.0,
-                entries: [],
-            });
-            current_range *= this.range_decay;
-        }
-        let range_sum = 0.0;
-        for (let i = 0; i < this.num_tiers; i++) {
-            range_sum += this.tiers[i].range;
-        }
-        for (let i = 0; i < this.num_tiers; i++) {
-            this.tiers[i].range /= range_sum;
-        }
-        let current_threshold = this.threshold;
-        for (let i = 0; i < this.num_tiers; i++) {
-            let tier = this.tiers[i];
-            tier.low = current_threshold;
-            current_threshold += this.range * tier.range;
-            tier.high = current_threshold;
+        for (let i = 0; i < this.num_bins; i++) {
+            let bin = this.bins[i];
+            bin.is_lowest = (i == 0);
+            bin.is_highest = (i == this.num_bins - 1);
+            bin.low_score = 0.0;
+            bin.high_score = 0.0;
+            bin.sum_score = 0.0;
+            bin.mean_score = 0.0;
+            bin.entries = [];
         }
     }
 
-    updateMean(tier_index, delta) {
-        let tier = this.tiers[tier_index];
-        let count = tier.entries.length;
+    _isBinEligible(bin) {
+        return bin.entries.length > 0;
+    }
+
+    updateMean(bin_index, delta) {
+        let bin = this.bins[bin_index];
+        let count = bin.entries.length;
         if (count > 0) {
-            tier.sum_score += delta;
-            tier.mean_score = tier.sum_score / count;
+            bin.sum_score += delta;
+            bin.mean_score = bin.sum_score / count;
         } else {
-            tier.sum_score = 0;
-            tier.mean_score = 0;
+            bin.sum_score = 0;
+            bin.mean_score = 0;
         }
     }
 
-    findLowestPerformingEntry(tier_index) {
-        let tier = this.tiers[tier_index];
-        if (tier.entries.length == 0) {
+    findLowestPerformingEntry(bin_index) {
+        let bin = this.bins[bin_index];
+        if (bin.entries.length == 0) {
             return -1;
         }
         let entry = null;
         let index = -1;
-        for (let i = 0; i < tier.entries.length; i++) {
-            let e = tier.entries[i];
+        for (let i = 0; i < bin.entries.length; i++) {
+            let e = bin.entries[i];
             if (entry === null || e.score < entry.score) {
                 entry = e;
                 index = i;
@@ -79,30 +61,30 @@ class GenePool {
         return index;
     }
 
-    removeLowestPerformingEntry(tier_index, min_score = undefined) {
-        let index = this.findLowestPerformingEntry(tier_index);
+    removeLowestPerformingEntry(bin_index, min_score = undefined) {
+        let index = this.findLowestPerformingEntry(bin_index);
         if (index >= 0) {
-            let tier = this.tiers[tier_index];
-            let entry = tier.entries[index];
+            let bin = this.bins[bin_index];
+            let entry = bin.entries[index];
             if (min_score === undefined || entry.score <= min_score) {
-                tier.entries.splice(index, 1);
+                bin.entries.splice(index, 1);
                 this.num_walkers--;
-                this.updateMean(tier_index, -entry.score);
+                this.updateMean(bin_index, -entry.score);
                 return entry;
             }
         }
         return null;
     }
 
-    findLowestHeadEntry(tier_index) {
-        let tier = this.tiers[tier_index];
-        if (tier.entries.length == 0) {
+    findLowestHeadEntry(bin_index) {
+        let bin = this.bins[bin_index];
+        if (bin.entries.length == 0) {
             return -1;
         }
         let entry = null;
         let index = -1;
-        for (let i = 0; i < tier.entries.length; i++) {
-            let e = tier.entries[i];
+        for (let i = 0; i < bin.entries.length; i++) {
+            let e = bin.entries[i];
             if (entry === null || e.mean_head_height < entry.mean_head_height) {
                 entry = e;
                 index = i;
@@ -114,52 +96,54 @@ class GenePool {
         return index;
     }
 
-    removeLowestHeadEntry(tier_index, min_head_height = undefined) {
-        let index = this.findLowestHeadEntry(tier_index);
+    removeLowestHeadEntry(bin_index, min_head_height = undefined) {
+        let index = this.findLowestHeadEntry(bin_index);
         if (index >= 0) {
-            let tier = this.tiers[tier_index];
-            let entry = tier.entries[index];
+            let bin = this.bins[bin_index];
+            let entry = bin.entries[index];
             if (min_head_height === undefined || entry.mean_head_height <= min_head_height) {
-                tier.entries.splice(index, 1);
+                bin.entries.splice(index, 1);
                 this.num_walkers--;
-                this.updateMean(tier_index, -entry.score);
+                this.updateMean(bin_index, -entry.score);
                 return entry;
             }
         }
         return null;
     }
 
-    removeOldestEntry(tier_index) {
-        let tier = this.tiers[tier_index];
-        if (tier.entries.length > 0) {
-            let entry = tier.entries.shift();
+    removeOldestEntry(bin_index) {
+        let bin = this.bins[bin_index];
+        if (bin.entries.length > 0) {
+            let entry = bin.entries.shift();
             this.num_walkers--;
-            this.updateMean(tier_index, -entry.score);
+            this.updateMean(bin_index, -entry.score);
             return entry;
         }
         return null;
     }
 
-    adjustEntry(tier_index, entry) {
-        if (tier_index < 0) {
+    adjustEntry(target_bin_index, entry) {
+        if (target_bin_index < 0) {
             return -1;
         }
-        for (let i = tier_index; i >= 0; i--) {
-            let tier = this.tiers[i];
-            if (entry.score >= tier.low_score && entry.score < tier.high_score) {
-                if (tier.entries.length < this.tier_capacity) {
-                    tier.entries.push(entry);
+        for (let i = target_bin_index; i >= 0; i--) {
+            let bin = this.bins[i];
+            if (entry.score >= bin.low_score && entry.score < bin.high_score) {
+                if (bin.entries.length < this.bin_capacity) {
+                    bin.entries.push(entry);
                     this.num_walkers++;
                     this.updateMean(i, entry.score);
                     return i;
                 }
                 let replacable_entry_index = this.findLowestHeadEntry(i);
-                let replacable_entry = tier.entries[replacable_entry_index];
-                if (replacable_entry.score < entry.score) {
-                    this.updateMean(i, -replacable_entry.score);
-                    this.updateMean(i, entry.score);
-                    tier.entries[replacable_entry_index] = entry;
-                    return i;
+                if (replacable_entry_index !== -1) {
+                    let replacable_entry = bin.entries[replacable_entry_index];
+                    if (replacable_entry.score < entry.score) {
+                        this.updateMean(i, -replacable_entry.score);
+                        this.updateMean(i, entry.score);
+                        bin.entries[replacable_entry_index] = entry;
+                        return i;
+                    }
                 }
                 return -1;
             }
@@ -168,26 +152,26 @@ class GenePool {
     }
 
     adjustEntries() {
-        for (let i = 0; i < this.num_tiers; i++) {
-            let tier = this.tiers[i];
-            for (let j = tier.entries.length-1; j >= 0; j--) {
-                let removed_entry = tier.entries[j];
-                if (removed_entry.score < tier.low_score) {
-                    tier.entries.splice(j, 1);
+        for (let i = 0; i < this.num_bins; i++) {
+            let bin = this.bins[i];
+            for (let j = bin.entries.length - 1; j >= 0; j--) {
+                let entry_to_check = bin.entries[j];
+                if (entry_to_check.score < bin.low_score) {
+                    bin.entries.splice(j, 1);
                     this.num_walkers--;
-                    this.updateMean(i, -removed_entry.score);
-                    this.adjustEntry(i - 1, removed_entry);
+                    this.updateMean(i, -entry_to_check.score);
+                    this.adjustEntry(i - 1, entry_to_check);
                 }
             }
         }
     }
 
-    adjustTiers() {
+    adjustBinScores() {
         this.start_score = this.threshold * this.history.record_score;
-        for (let i = 0; i < this.num_tiers; i++) {
-            let tier = this.tiers[i];
-            tier.low_score = tier.low * this.history.record_score;
-            tier.high_score = tier.high * this.history.record_score;
+        for (let i = 0; i < this.num_bins; i++) {
+            let bin = this.bins[i];
+            bin.low_score = bin.low * this.history.record_score;
+            bin.high_score = bin.high * this.history.record_score;
         }
         this.adjustEntries();
     }
@@ -201,19 +185,21 @@ class GenePool {
     }
 
     placeGenome(walker) {
-        for (let i = this.num_tiers - 1; i >= 0; i--) {
-            let tier = this.tiers[i];
-            if (walker.score >= tier.low_score) {
-                if (tier.entries.length >= this.tier_capacity) {
-                    let removed_entry = this.removeLowestHeadEntry(i, walker.mean_head_height);
+        for (let i = this.num_bins - 1; i >= 0; i--) {
+            let bin = this.bins[i];
+            if (walker.score >= bin.low_score) {
+                if (bin.entries.length >= this.bin_capacity) {
+                    //let removed_entry = this.removeLowestHeadEntry(i, walker.mean_head_height);
+                    let removed_entry = this.removeLowestPerformingEntry(i, walker.score);
                     if (removed_entry === null) {
-                        if (Math.random() < 0.25)
-                            this.removeLowestHeadEntry(i);
-                        else
+                        if (Math.random() < 0.25) {
+                            this.removeOldestEntry(i);
+                        } else {
                             return false;
+                        }
                     }
                 }
-                tier.entries.push(this.entryFromWalker(walker));
+                bin.entries.push(this.entryFromWalker(walker));
                 this.num_walkers++;
                 this.updateMean(i, walker.score);
                 return true;
@@ -222,71 +208,15 @@ class GenePool {
         return false;
     }
 
-    selectEligibleTiers() {
-        let result = [];
-        for (let i = 0; i < this.num_tiers; i++) {
-            if (this.tiers[i].entries.length > 0) {
-                result.push({
-                    index: i,
-                    tier: this.tiers[i],
-                });
-            }
-        }
-        if (result.length <= 1) {
-            return result;
-        }
-        let rank_increment = 1.0 / (result.length - 1) * Math.max(0.0, this.tier_selection_pressure - 1.0);
-        let rank_sum = 0.0;
-        for (let i = 0; i < result.length; i++) {
-            let rank = 1.0 + rank_increment * i;
-            result[i].rank = rank;
-            rank_sum += rank;
-        }
-        for (let i = 0; i < result.length; i++) {
-            result[i].weight = result[i].rank / rank_sum;
-        }
-        return result;
-    }
-
-    selectEligibleTierUniform(eligible_tiers) {
-        if (eligible_tiers.length == 0) {
+    selectParentEntryUniform(selected_bin) {
+        if (selected_bin === null || selected_bin.entries.length == 0) {
             return null;
         }
-        if (eligible_tiers.length == 1) {
-            return eligible_tiers[0].tier;
+        if (selected_bin.entries.length == 1) {
+            return selected_bin.entries[0];
         }
-        let selected_tier_index = Math.floor(Math.random() * eligible_tiers.length);
-        return eligible_tiers[selected_tier_index].tier;
-    }
-
-    selectEligibleTierWeighted(eligible_tiers) {
-        if (eligible_tiers.length == 0) {
-            return null;
-        }
-        if (eligible_tiers.length == 1) {
-            return eligible_tiers[0].tier;
-        }
-        let random_value = Math.random();
-        let sum = 0.0;
-        for (let i = 0; i < eligible_tiers.length; i++) {
-            let weight = eligible_tiers[i].weight;
-            if (random_value >= sum && random_value < sum + weight) {
-                return eligible_tiers[i].tier;
-            }
-            sum += weight;
-        }
-        return eligible_tiers[eligible_tiers.length-1].tier;
-    }
-
-    selectParentEntryUniform(selected_tier) {
-        if (selected_tier === null || selected_tier.entries.length == 0) {
-            return null;
-        }
-        if (selected_tier.entries.length == 1) {
-            return selected_tier.entries[0];
-        }
-        let selected_entry_index = Math.floor(Math.random() * selected_tier.entries.length);
-        return selected_tier.entries[selected_entry_index];
+        let selected_entry_index = Math.floor(Math.random() * selected_bin.entries.length);
+        return selected_bin.entries[selected_entry_index];
     }
 
     mutateGenome(genome) {
@@ -307,18 +237,18 @@ class GenePool {
     }
 
     isEmpty() {
-        if (this.num_walkers < 0 || this.num_walkers > this.num_tiers * this.tier_capacity)
+        if (this.num_walkers < 0 || this.num_walkers > this.num_bins * this.bin_capacity)
             console.error("invalid number of walkers");
         return this.num_walkers <= 0;
     }
 
     addWalker(walker) {
-        if (this.num_tiers === 0 || this.tier_capacity === 0) {
+        if (this.num_bins === 0 || this.bin_capacity === 0) {
             return false;
         }
         let is_highscore = this.history.addWalker(walker);
         if (is_highscore) {
-            this.adjustTiers();
+            this.adjustBinScores();
         }
         this.placeGenome(walker);
         return is_highscore;
@@ -327,11 +257,11 @@ class GenePool {
     selectParentGenome() {
         if (this.history.record_holder && Math.random() < 0.05)
             return JSON.parse(this.history.record_holder.genome);
-        let eligible_tiers = this.selectEligibleTiers();
-        let selected_tier = this.selectEligibleTierWeighted(eligible_tiers);
-        let selected_parent = this.selectParentEntryUniform(selected_tier);
-        if (selected_parent !== null)
-            return JSON.parse(selected_parent.genome);
+        let eligible_bins = this.getEligibleBins();
+        let selected_bin = this.selectBinWeighted(eligible_bins);
+        let selected_parent_entry = this.selectParentEntryUniform(selected_bin);
+        if (selected_parent_entry !== null)
+            return JSON.parse(selected_parent_entry.genome);
         return null;
     }
 

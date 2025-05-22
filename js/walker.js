@@ -84,12 +84,15 @@ class Walker {
     updateEliminated() {
         if (this.isSlacker()) {
             this.is_eliminated = true;
+            //console.log("slacker: " + this.score);
         }
         if (this.isOffFloor()) {
             this.is_eliminated = true;
+            //console.log("off floor: " + this.score);
         }
         if (this.getPressureLineDistance() <= 0) {
             this.is_eliminated = true;
+            //console.log("pressure line: " + this.score);
         }
     }
 

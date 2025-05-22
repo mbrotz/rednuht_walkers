@@ -466,7 +466,7 @@ class Renderer {
             return;
         }
 
-        if (genepool.tiers.length === 0 || genepool.history.record_score <= 0) {
+        if (genepool.bins.length === 0 || genepool.history.record_score <= 0) {
             context.fillStyle = "#eee";
             context.fillRect(0,0, canvasWidth, canvasHeight);
             context.strokeStyle = "#ccc";
@@ -491,29 +491,29 @@ class Renderer {
             context.fillText("Gene Pool Range Too Small", canvasWidth / 2, canvasHeight / 2 + 4);
             return;
         }
-        let tierColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C"];
-        for (let i = 0; i < genepool.tiers.length; i++) {
-            let tier = genepool.tiers[i];
-            let tierActualStartScore = tier.low_score;
-            let tierActualEndScore = tier.high_score;
-            let tierDisplayStartScore = Math.max(tierActualStartScore, barStartScore);
-            let tierDisplayEndScore = Math.min(tierActualEndScore, barEndScore);
-            if (tierDisplayEndScore <= tierDisplayStartScore) continue;
-            let tierStartPosOnBarRel = tierDisplayStartScore - barStartScore;
-            let tierEndPosOnBarRel = tierDisplayEndScore - barStartScore;
-            let tierStartX_px = (tierStartPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
-            let tierEndX_px = (tierEndPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
-            let tierWidth_px = tierEndX_px - tierStartX_px;
-            if (tierWidth_px <= 0.1) continue;
-            context.fillStyle = tierColors[i % tierColors.length];
-            context.fillRect(tierStartX_px, 0, tierWidth_px + 2, canvasHeight);
-            if (tier.entries.length > 0 && tier.mean_score >= tier.low_score && tier.mean_score <= tier.high_score) {
-                let tierScoreRange = tier.high_score - tier.low_score;
-                if (tierScoreRange > 0) {
-                    let avgScorePosInTierRel = (tier.mean_score - tier.low_score) / tierScoreRange;
-                    let avgLineX_px = tierStartX_px + (avgScorePosInTierRel * tierWidth_px);
-                    avgLineX_px = Math.max(tierStartX_px, Math.min(avgLineX_px, tierEndX_px -1));
-                    let avgLineHeight_n = tier.entries.length / genepool.tier_capacity;
+        let binColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C"];
+        for (let i = 0; i < genepool.bins.length; i++) {
+            let bin = genepool.bins[i];
+            let binActualStartScore = bin.low_score;
+            let binActualEndScore = bin.high_score;
+            let binDisplayStartScore = Math.max(binActualStartScore, barStartScore);
+            let binDisplayEndScore = Math.min(binActualEndScore, barEndScore);
+            if (binDisplayEndScore <= binDisplayStartScore) continue;
+            let binStartPosOnBarRel = binDisplayStartScore - barStartScore;
+            let binEndPosOnBarRel = binDisplayEndScore - barStartScore;
+            let binStartX_px = (binStartPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
+            let binEndX_px = (binEndPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
+            let binWidth_px = binEndX_px - binStartX_px;
+            if (binWidth_px <= 0.1) continue;
+            context.fillStyle = binColors[i % binColors.length];
+            context.fillRect(binStartX_px, 0, binWidth_px + 2, canvasHeight);
+            if (bin.entries.length > 0 && bin.mean_score >= bin.low_score && bin.mean_score <= bin.high_score) {
+                let binScoreRange = bin.high_score - bin.low_score;
+                if (binScoreRange > 0) {
+                    let avgScorePosInTierRel = (bin.mean_score - bin.low_score) / binScoreRange;
+                    let avgLineX_px = binStartX_px + (avgScorePosInTierRel * binWidth_px);
+                    avgLineX_px = Math.max(binStartX_px, Math.min(avgLineX_px, binEndX_px -1));
+                    let avgLineHeight_n = bin.entries.length / genepool.bin_capacity;
                     let avgLineHeight_half = Math.max(1, (canvasHeight - 4) * avgLineHeight_n) / 2.0;
                     let avgLineStartY_px = (canvasHeight / 2.0) - avgLineHeight_half;
                     let avgLineEndY_px = (canvasHeight / 2.0) + avgLineHeight_half;
