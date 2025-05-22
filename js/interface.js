@@ -223,22 +223,24 @@ class Interface {
     }
 
     findClickedMapElitesBin(event) {
-        if (!this.game.mapelites || !this.game.mapelites.bins || !this.mapelitesCanvasEl) {
+        if (!this.game.mapelites || !this.game.mapelites.bins || !this.mapelitesCanvasEl || this.game.mapelites.bins.length === 0) {
             return null;
         }
-        const threshold = this.game.mapelites.threshold;
-        const bins = this.game.mapelites.bins;
+        const mapelites = this.game.mapelites;
+        const threshold = mapelites.threshold;
+        const mapElitesDisplayRange = mapelites.range;
+        if (mapElitesDisplayRange <= 0) {
+            return null;
+        }
+        const bins = mapelites.bins;
         const canvas = this.mapelitesCanvasEl;
         const canvasWidth = canvas.width;
         const rect = canvas.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
-
         for (let i = 0; i < bins.length; i++) {
             const bin = bins[i];
-
-            const xPixelStart = canvasWidth * (bin.low - threshold);
-            const xPixelEnd = canvasWidth * (bin.high - threshold);
-
+            const xPixelStart = canvasWidth * (bin.low - threshold) / mapElitesDisplayRange;
+            const xPixelEnd = canvasWidth * (bin.high - threshold) / mapElitesDisplayRange;
             if (clickX >= xPixelStart && clickX < xPixelEnd) {
                 return bins[i];
             }

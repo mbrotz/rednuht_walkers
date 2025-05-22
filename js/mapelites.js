@@ -32,7 +32,7 @@ class MapElites {
         for (let i = 0; i < this.num_height_bins; i++) {
             let bin = this.bins[i];
             bin.low = current_threshold;
-            current_threshold += bin.range;
+            current_threshold += this.range * bin.range;
             bin.high = current_threshold;
         }
     }
@@ -41,19 +41,16 @@ class MapElites {
         if (walker.mean_head_height < this.threshold || walker.mean_head_height > 1.0) {
             return null;
         }
-        let fitting_bin = null;
-        for (let i = 0; i < this.bins.length; i++) {
-            let bin = this.bins[i];
-            if (walker.mean_head_height >= bin.low && walker.mean_head_height < bin.high) {
-                fitting_bin = bin;
-                break;
-            }
-        }
-        if (fitting_bin === null) {
-            console.error("no fitting bin found");
+        if (this.bins.length === 0) {
             return null;
         }
-        return fitting_bin;
+        for (let i = 0; i < this.bins.length - 1; i++) {
+            let bin = this.bins[i];
+            if (walker.mean_head_height >= bin.low && walker.mean_head_height < bin.high) {
+                return bin;
+            }
+        }
+        return this.bins[this.bins.length - 1];
     }
 
     selectEligibleBins() {

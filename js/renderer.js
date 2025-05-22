@@ -360,7 +360,10 @@ class Renderer {
         let canvasWidth = canvas.width;
         let canvasHeight = canvas.height;
         context.clearRect(0, 0, canvasWidth, canvasHeight);
-        const bins = this.game.mapelites.bins;
+
+        const mapelites = this.game.mapelites;
+        const bins = mapelites.bins;
+
         if (!bins || bins.length === 0) {
             context.fillStyle = "#eee";
             context.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -372,8 +375,11 @@ class Renderer {
             context.fillText("MAP-Elites Archive Empty", canvasWidth / 2, canvasHeight / 2 + 4);
             return;
         }
-        const range = this.game.mapelites.range;
-        if (range <= 0) {
+
+        const threshold = mapelites.threshold;
+        const mapElitesDisplayRange = mapelites.range;
+
+        if (mapElitesDisplayRange <= 0) {
             context.fillStyle = "#ddd";
             context.fillRect(0,0, canvasWidth, canvasHeight);
             context.strokeStyle = "#aaa";
@@ -384,17 +390,18 @@ class Renderer {
             context.fillText("Map Elites Range Too Small", canvasWidth / 2, canvasHeight / 2 + 4);
             return;
         }
+
         let maxRecordScoreOverall = 0;
         for (let i = 0; i < bins.length; i++) {
             if (bins[i] && bins[i].genepool && bins[i].genepool.history) {
                 maxRecordScoreOverall = Math.max(maxRecordScoreOverall, bins[i].genepool.history.record_score);
             }
         }
-        const threshold = this.game.mapelites.threshold;
+
         for (let i = 0; i < bins.length; i++) {
             const bin = bins[i];
-            const x_start = canvasWidth * (bin.low - threshold);
-            const x_end = canvasWidth * (bin.high - threshold);
+            const x_start = canvasWidth * (bin.low - threshold) / mapElitesDisplayRange;
+            const x_end = canvasWidth * (bin.high - threshold) / mapElitesDisplayRange;
             const binWidth = x_end - x_start;
             let normalized_score = 0;
             if (bin && bin.genepool && bin.genepool.history) {
@@ -425,8 +432,8 @@ class Renderer {
         if (this.game.interface.selectedMapElitesBin > -1 && this.game.interface.selectedMapElitesBin < bins.length) {
             const bin = bins[this.game.interface.selectedMapElitesBin];
             if (bin) {
-                const x_start = canvasWidth * (bin.low - threshold);
-                const x_end = canvasWidth * (bin.high - threshold);
+                const x_start = canvasWidth * (bin.low - threshold) / mapElitesDisplayRange;
+                const x_end = canvasWidth * (bin.high - threshold) / mapElitesDisplayRange;
                 const binWidth = x_end - x_start;
                 context.strokeStyle = "red";
                 context.lineWidth = 2;
