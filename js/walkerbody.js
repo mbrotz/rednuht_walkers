@@ -183,7 +183,7 @@ class WalkerBody {
         let bd = new b2.BodyDef();
         bd.type = b2.Body.b2_dynamicBody;
         bd.linearDamping = 0;
-        bd.angularDamping = 0.01;
+        bd.angularDamping = 0.5;
         bd.allowSleep = true;
         bd.awake = true;
         bd.position.Set(x, y);
