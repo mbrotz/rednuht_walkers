@@ -136,29 +136,59 @@ class Renderer {
             { stop: 0.0, hsl: [190, 65, 92] },
             { stop: 1.0, hsl: [182, 100, 19] }
         ];
+
+        this._walkerPressureColorStops = [
+            { stop: 0.0,  hsl: [180, 60, 70] },
+            { stop: 0.4,  hsl: [60,  90, 60] },
+            { stop: 0.7,  hsl: [30,  90, 55] },
+            { stop: 1.0,  hsl: [0,   90, 50] }
+        ];
     }
 
-    _interpolateHSL(hsl1, hsl2, factor) {
-        const h = hsl1[0] + (hsl2[0] - hsl1[0]) * factor;
-        const s = hsl1[1] + (hsl2[1] - hsl1[1]) * factor;
-        const l = hsl1[2] + (hsl2[2] - hsl1[2]) * factor;
+    _interpolateHSLComponents(hsl1_array, hsl2_array, factor) {
+        const h = hsl1_array[0] + (hsl2_array[0] - hsl1_array[0]) * factor;
+        const s = hsl1_array[1] + (hsl2_array[1] - hsl1_array[1]) * factor;
+        const l = hsl1_array[2] + (hsl2_array[2] - hsl1_array[2]) * factor;
+        return { h, s, l };
+    }
+
+    _formatHSLToString({ h, s, l }) {
         return `hsl(${h.toFixed(0)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`;
     }
     
-    _getGradientHSLColor(value, colorStops) {
-        if (!colorStops || colorStops.length === 0) return 'hsl(0, 0%, 50%)'; 
-        if (value <= colorStops[0].stop) return `hsl(${colorStops[0].hsl[0]}, ${colorStops[0].hsl[1]}%, ${colorStops[0].hsl[2]}%)`;
-        if (value >= colorStops[colorStops.length - 1].stop) return `hsl(${colorStops[colorStops.length - 1].hsl[0]}, ${colorStops[colorStops.length - 1].hsl[1]}%, ${colorStops[colorStops.length - 1].hsl[2]}%)`;
+    _getGradientHSLComponents(value, colorStops) {
+        if (!colorStops || colorStops.length === 0) {
+            return { h: 0, s: 0, l: 50 };
+        }
+        if (value <= colorStops[0].stop) {
+            const c = colorStops[0].hsl;
+            return { h: c[0], s: c[1], l: c[2] };
+        }
+        if (value >= colorStops[colorStops.length - 1].stop) {
+            const c = colorStops[colorStops.length - 1].hsl;
+            return { h: c[0], s: c[1], l: c[2] };
+        }
     
         for (let i = 0; i < colorStops.length - 1; i++) {
             const s1 = colorStops[i];
             const s2 = colorStops[i + 1];
             if (value >= s1.stop && value <= s2.stop) {
                 const factor = (s2.stop - s1.stop === 0) ? 0 : (value - s1.stop) / (s2.stop - s1.stop);
-                return this._interpolateHSL(s1.hsl, s2.hsl, factor);
+                return this._interpolateHSLComponents(s1.hsl, s2.hsl, factor);
             }
         }
-        return `hsl(${colorStops[colorStops.length - 1].hsl[0]}, ${colorStops[colorStops.length - 1].hsl[1]}%, ${colorStops[colorStops.length - 1].hsl[2]}%)`;
+        const lastC = colorStops[colorStops.length - 1].hsl;
+        return { h: lastC[0], s: lastC[1], l: lastC[2] };
+    }
+
+    _getGradientHSLColor(value, colorStops) {
+        const hslComponents = this._getGradientHSLComponents(value, colorStops);
+        return this._formatHSLToString(hslComponents);
+    }
+
+    _adjustHSLComponentsLightness({ h, s, l }, adjustment) {
+        const newL = Math.max(0, Math.min(100, l + adjustment));
+        return { h, s, l: newL };
     }
 
     _drawBinnedVisualization(context, canvasWidth, canvasHeight,
@@ -177,7 +207,7 @@ class Renderer {
                 let barEndScore = binningDataSource.history.record_score;
                 if ((barEndScore - barStartScore) <= 0) displayRangeInvalid = true;
             } else {
-                isEmpty = true; // If binningDataSource itself is null for genepool
+                isEmpty = true;
             }
         }
     
@@ -288,12 +318,16 @@ class Renderer {
     drawWalker(walker) {
         const ctx = this.simContext;
         let pressure_line_distance = walker.getPressureLineDistance();
-        let normalized_distance = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
-        let brightness_factor = 40 + 50 * normalized_distance;
-        let saturation_factor = 30 + 40 * normalized_distance;
-        ctx.strokeStyle = "hsl(240, 100%, " + brightness_factor.toFixed(0) + "%)";
-        ctx.fillStyle = "hsl(240, " + saturation_factor.toFixed(0) + "%, " + (brightness_factor * 0.8).toFixed(0) + "%)";
+        let normalized_pressure_value = Math.max(0.0, Math.min(1.0, 1.0 / (1.0 + pressure_line_distance)));
+
+        const fillHslComponents = this._getGradientHSLComponents(normalized_pressure_value, this._walkerPressureColorStops);
+        ctx.fillStyle = this._formatHSLToString(fillHslComponents);
+
+        const strokeHslComponents = this._adjustHSLComponentsLightness(fillHslComponents, -20);
+        ctx.strokeStyle = this._formatHSLToString(strokeHslComponents);
+
         ctx.lineWidth = this.camera.screenToWorldWidth(1);
+
         for (let i = 0; i < walker.body.bodies.length; i++) {
             this.drawBodyPart(walker.body.bodies[i]);
         }
