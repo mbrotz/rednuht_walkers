@@ -137,8 +137,7 @@ class Renderer {
         this.camera.apply(this.simContext);
 
         this.drawFloor(floor);
-        this.drawWalkersOriginIndicator(this.walkers_origin_x, floor);
-        this.drawWalkers(walkers);
+        this.drawWalkers(walkers, floor);
         this.drawRuler(floor);
 
         this.simContext.restore();
@@ -190,23 +189,24 @@ class Renderer {
         }
     }
 
-    drawWalkers(walkers) {
-        for (let k = walkers.length - 1; k >= 0 ; k--) {
-            let walker = walkers[k];
-            if (walker && !walker.is_eliminated) {
-                this.drawWalker(walker);
-            }
-        }
-    }
-
-    drawWalkersOriginIndicator(walkers_origin_x, floor) {
+    drawWalkerTorsoIndicator(torso_x, floor) {
         const ctx = this.simContext;
         let floor_y = floor.GetFixtureList().m_shape.m_vertices[0].y;
         ctx.strokeStyle = "#000";
         ctx.beginPath();
-        ctx.moveTo(walkers_origin_x, floor_y);
-        ctx.lineTo(walkers_origin_x, floor_y - 0.1);
+        ctx.moveTo(torso_x, floor_y);
+        ctx.lineTo(torso_x, floor_y - 0.1);
         ctx.stroke();
+    }
+
+    drawWalkers(walkers, floor) {
+        for (let k = walkers.length - 1; k >= 0 ; k--) {
+            let walker = walkers[k];
+            if (walker && !walker.is_eliminated) {
+                this.drawWalker(walker);
+                this.drawWalkerTorsoIndicator(walker.getTorsoPosition(), floor);
+            }
+        }
     }
 
     drawRuler(floor) {
