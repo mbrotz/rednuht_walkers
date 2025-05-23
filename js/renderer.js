@@ -123,6 +123,116 @@ class Renderer {
             camera_start_y: this.camera_start_y,
             camera_max_zoom_factor: this.camera_max_zoom_factor
         });
+
+        this._mapElitesColorStops = [
+            { stop: 0.0, hsl: [207, 61, 40] },
+            { stop: 0.25, hsl: [196, 53, 78] },
+            { stop: 0.5, hsl: [60, 100, 87] },
+            { stop: 0.75, hsl: [39, 96, 69] },
+            { stop: 1.0, hsl: [6, 74, 51] }
+        ];
+        
+        this._genePoolColorStops = [
+            { stop: 0.0, hsl: [190, 65, 92] },
+            { stop: 1.0, hsl: [182, 100, 19] }
+        ];
+    }
+
+    _interpolateHSL(hsl1, hsl2, factor) {
+        const h = hsl1[0] + (hsl2[0] - hsl1[0]) * factor;
+        const s = hsl1[1] + (hsl2[1] - hsl1[1]) * factor;
+        const l = hsl1[2] + (hsl2[2] - hsl1[2]) * factor;
+        return `hsl(${h.toFixed(0)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`;
+    }
+    
+    _getGradientHSLColor(value, colorStops) {
+        if (!colorStops || colorStops.length === 0) return 'hsl(0, 0%, 50%)'; 
+        if (value <= colorStops[0].stop) return `hsl(${colorStops[0].hsl[0]}, ${colorStops[0].hsl[1]}%, ${colorStops[0].hsl[2]}%)`;
+        if (value >= colorStops[colorStops.length - 1].stop) return `hsl(${colorStops[colorStops.length - 1].hsl[0]}, ${colorStops[colorStops.length - 1].hsl[1]}%, ${colorStops[colorStops.length - 1].hsl[2]}%)`;
+    
+        for (let i = 0; i < colorStops.length - 1; i++) {
+            const s1 = colorStops[i];
+            const s2 = colorStops[i + 1];
+            if (value >= s1.stop && value <= s2.stop) {
+                const factor = (s2.stop - s1.stop === 0) ? 0 : (value - s1.stop) / (s2.stop - s1.stop);
+                return this._interpolateHSL(s1.hsl, s2.hsl, factor);
+            }
+        }
+        return `hsl(${colorStops[colorStops.length - 1].hsl[0]}, ${colorStops[colorStops.length - 1].hsl[1]}%, ${colorStops[colorStops.length - 1].hsl[2]}%)`;
+    }
+
+    _drawBinnedVisualization(context, canvasWidth, canvasHeight,
+                             bins, binningDataSource, config) {
+        context.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        let isEmpty = !bins || bins.length === 0;
+        let displayRangeInvalid = false;
+
+        if (config.binningType === 'mapelites') {
+            if (!binningDataSource || binningDataSource.range <= 0) displayRangeInvalid = true;
+        } else if (config.binningType === 'genepool') {
+            if (!binningDataSource || binningDataSource.history.record_score <= 0) isEmpty = true;
+            if (binningDataSource) {
+                let barStartScore = binningDataSource.start_score;
+                let barEndScore = binningDataSource.history.record_score;
+                if ((barEndScore - barStartScore) <= 0) displayRangeInvalid = true;
+            } else {
+                isEmpty = true; // If binningDataSource itself is null for genepool
+            }
+        }
+    
+        if (isEmpty || displayRangeInvalid) {
+            context.fillStyle = config.emptyState.backgroundColor;
+            context.fillRect(0, 0, canvasWidth, canvasHeight);
+            context.strokeStyle = config.emptyState.borderColor;
+            context.strokeRect(0, 0, canvasWidth, canvasHeight);
+            context.fillStyle = config.emptyState.textColor;
+            context.font = "10px sans-serif";
+            context.textAlign = "center";
+            context.fillText(displayRangeInvalid && !isEmpty ? config.emptyState.rangeMessage : config.emptyState.message, canvasWidth / 2, canvasHeight / 2 + 4);
+            return;
+        }
+    
+        for (let i = 0; i < bins.length; i++) {
+            const bin = bins[i];
+            let x_start_px, binWidth_px;
+    
+            if (config.binningType === 'mapelites') {
+                const threshold = binningDataSource.threshold;
+                const displayRange = binningDataSource.range;
+                x_start_px = canvasWidth * (bin.low - threshold) / displayRange;
+                const x_end_px = canvasWidth * (bin.high - threshold) / displayRange;
+                binWidth_px = x_end_px - x_start_px;
+            } else { 
+                let barStartScore = binningDataSource.start_score;
+                let barEndScore = binningDataSource.history.record_score;
+                let totalScoreRangeOnBar = barEndScore - barStartScore;
+    
+                let binDisplayStartScore = Math.max(bin.low_score, barStartScore);
+                let binDisplayEndScore = Math.min(bin.high_score, barEndScore);
+    
+                if (binDisplayEndScore <= binDisplayStartScore) continue;
+    
+                let binStartPosOnBarRel = binDisplayStartScore - barStartScore;
+                x_start_px = (binStartPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
+                binWidth_px = ((binDisplayEndScore - binDisplayStartScore) / totalScoreRangeOnBar) * canvasWidth;
+                if (binWidth_px <= 0.1) continue;
+            }
+    
+            const valueForColor = config.getBinValueForColor(bin, binningDataSource, config.overallMinMax);
+            const fillColor = config.getBinColor(valueForColor, bin, binningDataSource);
+    
+            context.fillStyle = fillColor;
+            context.fillRect(x_start_px, 0, binWidth_px, canvasHeight);
+    
+            context.strokeStyle = "#777";
+            context.lineWidth = 0.5;
+            context.strokeRect(x_start_px, 0, binWidth_px, canvasHeight);
+    
+            if (config.drawBinDecorations) {
+                config.drawBinDecorations(context, bin, x_start_px, binWidth_px, canvasHeight, binningDataSource, config.interfaceState);
+            }
+        }
     }
 
     drawFrame() {
@@ -355,176 +465,123 @@ class Renderer {
         if (!this.mapelitesContext || !this.game.mapelites || !this.game.interface) {
             return;
         }
-        let context = this.mapelitesContext;
-        let canvas = this.mapelitesCanvas;
-        let canvasWidth = canvas.width;
-        let canvasHeight = canvas.height;
-        context.clearRect(0, 0, canvasWidth, canvasHeight);
-
+    
         const mapelites = this.game.mapelites;
         const bins = mapelites.bins;
-
-        if (!bins || bins.length === 0) {
-            context.fillStyle = "#eee";
-            context.fillRect(0, 0, canvasWidth, canvasHeight);
-            context.strokeStyle = "#ccc";
-            context.strokeRect(0, 0, canvasWidth, canvasHeight);
-            context.fillStyle = "#777";
-            context.font = "10px sans-serif";
-            context.textAlign = "center";
-            context.fillText("MAP-Elites Archive Empty", canvasWidth / 2, canvasHeight / 2 + 4);
-            return;
-        }
-
-        const threshold = mapelites.threshold;
-        const mapElitesDisplayRange = mapelites.range;
-
-        if (mapElitesDisplayRange <= 0) {
-            context.fillStyle = "#ddd";
-            context.fillRect(0,0, canvasWidth, canvasHeight);
-            context.strokeStyle = "#aaa";
-            context.strokeRect(0,0, canvasWidth, canvasHeight);
-            context.fillStyle = "#555";
-            context.font = "10px sans-serif";
-            context.textAlign = "center";
-            context.fillText("Map Elites Range Too Small", canvasWidth / 2, canvasHeight / 2 + 4);
-            return;
-        }
-
+    
         let maxRecordScoreOverall = 0;
-        for (let i = 0; i < bins.length; i++) {
-            if (bins[i] && bins[i].genepool && bins[i].genepool.history) {
-                maxRecordScoreOverall = Math.max(maxRecordScoreOverall, bins[i].genepool.history.record_score);
-            }
-        }
-
-        for (let i = 0; i < bins.length; i++) {
-            const bin = bins[i];
-            const x_start = canvasWidth * (bin.low - threshold) / mapElitesDisplayRange;
-            const x_end = canvasWidth * (bin.high - threshold) / mapElitesDisplayRange;
-            const binWidth = x_end - x_start;
-            let normalized_score = 0;
-            if (bin && bin.genepool && bin.genepool.history) {
-                const current_bin_score = bin.genepool.history.record_score;
-                if (maxRecordScoreOverall > 0) {
-                    normalized_score = current_bin_score / maxRecordScoreOverall;
+        if (bins) {
+            for (let i = 0; i < bins.length; i++) {
+                if (bins[i] && bins[i].genepool && bins[i].genepool.history) {
+                    maxRecordScoreOverall = Math.max(maxRecordScoreOverall, bins[i].genepool.history.record_score);
                 }
             }
-            normalized_score = Math.max(0, Math.min(1, normalized_score));
-            const gray_value = Math.floor(255 * (1 - normalized_score));
-            context.fillStyle = "rgb(" + gray_value + "," + gray_value + "," + gray_value + ")";
-            context.fillRect(x_start, 0, binWidth, canvasHeight);
-            context.strokeStyle = "#bbb";
-            context.lineWidth = 0.5;
-            context.strokeRect(x_start, 0, binWidth, canvasHeight);
-            if (!bin.enabled) {
-                context.strokeStyle = "red";
-                context.lineWidth = 2;
-                context.beginPath();
-                context.moveTo(x_start, 0);
-                context.lineTo(x_end, canvasHeight);
-                context.moveTo(x_end, 0);
-                context.lineTo(x_start, canvasHeight);
-                context.stroke();
-            }
         }
-
-        if (this.game.interface.selectedMapElitesBin > -1 && this.game.interface.selectedMapElitesBin < bins.length) {
-            const bin = bins[this.game.interface.selectedMapElitesBin];
-            if (bin) {
-                const x_start = canvasWidth * (bin.low - threshold) / mapElitesDisplayRange;
-                const x_end = canvasWidth * (bin.high - threshold) / mapElitesDisplayRange;
-                const binWidth = x_end - x_start;
-                context.strokeStyle = "red";
-                context.lineWidth = 2;
-                context.strokeRect(x_start + 1, 1, binWidth - 2, canvasHeight - 2);
-            }
-        }
+    
+        const config = {
+            binningType: 'mapelites',
+            getBinValueForColor: (bin, ds, overallMinMax) => {
+                let normalized_score = 0;
+                if (bin && bin.genepool && bin.genepool.history) {
+                    const current_bin_score = bin.genepool.history.record_score;
+                    if (overallMinMax.max > 0) {
+                        normalized_score = current_bin_score / overallMinMax.max;
+                    }
+                }
+                return Math.max(0, Math.min(1, normalized_score));
+            },
+            getBinColor: (normalizedValue, bin) => {
+                if (!bin.enabled) return "#E0E0E0"; 
+                return this._getGradientHSLColor(normalizedValue, this._mapElitesColorStops);
+            },
+            drawBinDecorations: (context, bin, x_start_px, binWidth_px, canvasHeight, ds, ifState) => {
+                if (!bin.enabled) {
+                    context.strokeStyle = "red";
+                    context.lineWidth = 2;
+                    context.beginPath();
+                    context.moveTo(x_start_px, 0);
+                    context.lineTo(x_start_px + binWidth_px, canvasHeight);
+                    context.moveTo(x_start_px + binWidth_px, 0);
+                    context.lineTo(x_start_px, canvasHeight);
+                    context.stroke();
+                }
+                if (ifState.selectedMapElitesBin === bin.index) {
+                    context.strokeStyle = "red";
+                    context.lineWidth = 2;
+                    context.strokeRect(x_start_px + 1, 1, binWidth_px - 2, canvasHeight - 2);
+                }
+            },
+            emptyState: {
+                message: "MAP-Elites Archive Empty",
+                rangeMessage: "MAP-Elites Range Too Small",
+                backgroundColor: "#eee", borderColor: "#ccc", textColor: "#777"
+            },
+            overallMinMax: { max: maxRecordScoreOverall },
+            interfaceState: { selectedMapElitesBin: this.game.interface.selectedMapElitesBin }
+        };
+    
+        this._drawBinnedVisualization(this.mapelitesContext, this.mapelitesCanvas.width, this.mapelitesCanvas.height,
+                                     bins, mapelites, config);
     }
 
     drawGenePool() {
-        let genepool = this.game.interface ? this.game.interface.currentSelectedGenePool : null;
+        const genepool = this.game.interface ? this.game.interface.currentSelectedGenePool : null;
 
-        if (!this.genepoolContext) {
-            return;
-        }
-        let context = this.genepoolContext;
-        let canvas = this.genepoolCanvas;
-        let canvasWidth = canvas.width;
-        let canvasHeight = canvas.height;
-        context.clearRect(0, 0, canvasWidth, canvasHeight);
+        if (!this.genepoolContext) return;
+    
+        const config = {
+            binningType: 'genepool',
+            getBinValueForColor: (bin, ds) => {
+                let barStartScore = ds.start_score;
+                let barEndScore = ds.history.record_score;
+                let totalScoreRangeOnBar = barEndScore - barStartScore;
+                if (totalScoreRangeOnBar <= 0) return 0; 
+    
+                let binMidPointDisplayScore = (Math.max(bin.low_score, barStartScore) + Math.min(bin.high_score, barEndScore)) / 2;
+                let normalizedPosition = (binMidPointDisplayScore - barStartScore) / totalScoreRangeOnBar;
+                return Math.max(0, Math.min(1, normalizedPosition));
+            },
+            getBinColor: (normalizedPosition) => {
+                return this._getGradientHSLColor(normalizedPosition, this._genePoolColorStops);
+            },
+            drawBinDecorations: (context, bin, x_start_px, binWidth_px, canvasHeight, ds) => {
+                if (bin.entries.length > 0 && bin.mean_score >= bin.low_score && bin.mean_score <= bin.high_score) {
+                    let barStartScore = ds.start_score;
+                    let barEndScore = ds.history.record_score;
+                    
+                    let binDisplayStartScore = Math.max(bin.low_score, barStartScore);
+                    let binDisplayEndScore = Math.min(bin.high_score, barEndScore);
 
-        if (!genepool) {
-            context.fillStyle = "#eee";
-            context.fillRect(0,0, canvasWidth, canvasHeight);
-            context.strokeStyle = "#ccc";
-            context.strokeRect(0,0, canvasWidth, canvasHeight);
-            context.fillStyle = "#777";
-            context.font = "10px sans-serif";
-            context.textAlign = "center";
-            context.fillText("No MAP-Elites Bin Selected", canvasWidth / 2, canvasHeight / 2 + 4);
-            return;
-        }
-
-        if (genepool.bins.length === 0 || genepool.history.record_score <= 0) {
-            context.fillStyle = "#eee";
-            context.fillRect(0,0, canvasWidth, canvasHeight);
-            context.strokeStyle = "#ccc";
-            context.strokeRect(0,0, canvasWidth, canvasHeight);
-            context.fillStyle = "#777";
-            context.font = "10px sans-serif";
-            context.textAlign = "center";
-            context.fillText("Gene Pool Empty", canvasWidth / 2, canvasHeight / 2 + 4);
-            return;
-        }
-        let barStartScore = genepool.start_score;
-        let barEndScore = genepool.history.record_score;
-        let totalScoreRangeOnBar = barEndScore - barStartScore;
-        if (totalScoreRangeOnBar <= 0) {
-            context.fillStyle = "#ddd";
-            context.fillRect(0,0, canvasWidth, canvasHeight);
-            context.strokeStyle = "#aaa";
-            context.strokeRect(0,0, canvasWidth, canvasHeight);
-            context.fillStyle = "#555";
-            context.font = "10px sans-serif";
-            context.textAlign = "center";
-            context.fillText("Gene Pool Range Too Small", canvasWidth / 2, canvasHeight / 2 + 4);
-            return;
-        }
-        let binColors = ["#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#388E3C"];
-        for (let i = 0; i < genepool.bins.length; i++) {
-            let bin = genepool.bins[i];
-            let binActualStartScore = bin.low_score;
-            let binActualEndScore = bin.high_score;
-            let binDisplayStartScore = Math.max(binActualStartScore, barStartScore);
-            let binDisplayEndScore = Math.min(binActualEndScore, barEndScore);
-            if (binDisplayEndScore <= binDisplayStartScore) continue;
-            let binStartPosOnBarRel = binDisplayStartScore - barStartScore;
-            let binEndPosOnBarRel = binDisplayEndScore - barStartScore;
-            let binStartX_px = (binStartPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
-            let binEndX_px = (binEndPosOnBarRel / totalScoreRangeOnBar) * canvasWidth;
-            let binWidth_px = binEndX_px - binStartX_px;
-            if (binWidth_px <= 0.1) continue;
-            context.fillStyle = binColors[i % binColors.length];
-            context.fillRect(binStartX_px, 0, binWidth_px + 2, canvasHeight);
-            if (bin.entries.length > 0 && bin.mean_score >= bin.low_score && bin.mean_score <= bin.high_score) {
-                let binScoreRange = bin.high_score - bin.low_score;
-                if (binScoreRange > 0) {
-                    let avgScorePosInTierRel = (bin.mean_score - bin.low_score) / binScoreRange;
-                    let avgLineX_px = binStartX_px + (avgScorePosInTierRel * binWidth_px);
-                    avgLineX_px = Math.max(binStartX_px, Math.min(avgLineX_px, binEndX_px -1));
-                    let avgLineHeight_n = bin.entries.length / genepool.bin_capacity;
+                    let meanScoreInVisibleBinPart = Math.max(0, Math.min(bin.mean_score, binDisplayEndScore) - binDisplayStartScore);
+                    let visibleBinWidthOnBar = binDisplayEndScore - binDisplayStartScore;
+                    if(visibleBinWidthOnBar <= 0) return;
+    
+                    let avgScorePosInTierRel = meanScoreInVisibleBinPart / visibleBinWidthOnBar;
+                    let avgLineX_px = x_start_px + (avgScorePosInTierRel * binWidth_px);
+    
+                    let avgLineHeight_n = bin.entries.length / ds.bin_capacity;
                     let avgLineHeight_half = Math.max(1, (canvasHeight - 4) * avgLineHeight_n) / 2.0;
                     let avgLineStartY_px = (canvasHeight / 2.0) - avgLineHeight_half;
                     let avgLineEndY_px = (canvasHeight / 2.0) + avgLineHeight_half;
-                    context.strokeStyle = "rgba(255, 0, 0, 0.7)";
+    
+                    context.strokeStyle = "rgb(255, 0, 0)"; 
                     context.lineWidth = 2;
                     context.beginPath();
                     context.moveTo(avgLineX_px, avgLineStartY_px);
                     context.lineTo(avgLineX_px, avgLineEndY_px);
                     context.stroke();
                 }
-            }
-        }
+            },
+            emptyState: {
+                message: genepool ? "Gene Pool Empty" : "No MAP-Elites Bin Selected",
+                rangeMessage: "Gene Pool Range Too Small",
+                backgroundColor: "#eee", borderColor: "#ccc", textColor: "#777"
+            },
+            overallMinMax: {},
+            interfaceState: {}
+        };
+    
+        this._drawBinnedVisualization(this.genepoolContext, this.genepoolCanvas.width, this.genepoolCanvas.height,
+                                     genepool ? genepool.bins : null, genepool, config);
     }
 }
