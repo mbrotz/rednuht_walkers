@@ -1,92 +1,164 @@
+let BodyDefinitions = {
+    Classic: {
+        density   : 106.2,
+        upperTorso: { width : 0.25, height: 0.45 },
+        lowerTorso: { width : 0.25, height: 0.2  },
+        upperLeg  : { width : 0.18, length: 0.45 },
+        lowerLeg  : { width : 0.13, length: 0.38 },
+        foot      : { length: 0.28, height: 0.08 },
+        upperArm  : { width : 0.12, length: 0.37 },
+        lowerArm  : { width : 0.1 , length: 0.42 },
+        head      : { width : 0.22, height: 0.22 },
+        neck      : { width : 0.1 , height: 0.08 }
+    },
+    Extended: {
+        density   : 106.2,
+        upperTorso: { width : 0.25, height: 0.45 },
+        lowerTorso: { width : 0.25, height: 0.2  },
+        upperLeg  : { width : 0.18, length: 0.45 },
+        lowerLeg  : { width : 0.13, length: 0.38 },
+        foot      : { length: 0.28, height: 0.08 },
+        upperArm  : { width : 0.12, length: 0.37 },
+        lowerArm  : { width : 0.1 , length: 0.42 },
+        head      : { width : 0.22, height: 0.22 },
+        neck      : { width : 0.1 , height: 0.08 }
+    }
+};
+
+let JointDefinitions = {
+    Classic: {
+        torso: {
+            lowerAngle: -Math.PI / 18,
+            upperAngle: Math.PI / 10,
+            maxMotorTorque: 250,
+            anchorOnBodyA: true,
+            offsetX: -BodyDefinitions.Classic.lowerTorso.width / 3,
+            offsetY: -BodyDefinitions.Classic.upperTorso.height / 2
+        },
+        knee: {
+            lowerAngle: -1.6,
+            upperAngle: -0.2,
+            maxMotorTorque: 160,
+            anchorOnBodyA: true,
+            offsetX: BodyDefinitions.Classic.upperLeg.width / 4,
+            offsetY: -BodyDefinitions.Classic.upperLeg.length / 2
+        },
+        ankle: {
+            lowerAngle: -Math.PI / 5,
+            upperAngle: Math.PI / 6,
+            maxMotorTorque: 70,
+            anchorOnBodyA: true,
+            offsetX: 0,
+            offsetY: -BodyDefinitions.Classic.lowerLeg.length / 2
+        },
+        elbow: {
+            lowerAngle: 0,
+            upperAngle: 1.22,
+            maxMotorTorque: 60,
+            anchorOnBodyA: true,
+            offsetX: 0,
+            offsetY: -BodyDefinitions.Classic.upperArm.length / 2
+        },
+        neck: {
+            lowerAngle: -0.1,
+            upperAngle: 0.1,
+            maxMotorTorque: 2,
+            anchorOnBodyA: false,
+            offsetX: 0,
+            offsetY: BodyDefinitions.Classic.neck.height / 2
+        },
+        shoulder: {
+            lowerAngle: -Math.PI / 2,
+            upperAngle: Math.PI / 1.5,
+            maxMotorTorque: 120,
+            anchorOnBodyA: true,
+            offsetX: 0,
+            offsetY: BodyDefinitions.Classic.upperTorso.height / 2
+        },
+        hip: {
+            lowerAngle: -Math.PI / 2.5,
+            upperAngle: Math.PI / 3,
+            maxMotorTorque: 250,
+            anchorOnBodyA: true,
+            offsetX: 0,
+            offsetY: -BodyDefinitions.Classic.lowerTorso.height / 2
+        }
+    },
+    Extended: {
+        torso: {                    // Simulates lumbar spine flexibility
+            lowerAngle: -0.7,       // Increased flexion (bending forward, approx -40 deg)
+            upperAngle: 0.5,        // Increased extension (bending backward, approx 28 deg)
+            maxMotorTorque: 250,
+            anchorOnBodyA: true,
+            offsetX: -BodyDefinitions.Extended.lowerTorso.width / 3,
+            offsetY: -BodyDefinitions.Extended.upperTorso.height / 2
+        },
+        knee: {
+            lowerAngle: -2.2,       // Max flexion (approx -126 deg, leg bends backward)
+            upperAngle: 0,          // Allows full straightening
+            maxMotorTorque: 160,
+            anchorOnBodyA: true,
+            offsetX: BodyDefinitions.Extended.upperLeg.width / 4,
+            offsetY: -BodyDefinitions.Extended.upperLeg.length / 2
+        },
+        ankle: {
+            lowerAngle: -0.87,      // Plantarflexion (pointing foot down, approx -50 deg)
+            upperAngle: 0.35,       // Dorsiflexion (pulling foot up, approx 20 deg)
+            maxMotorTorque: 70,
+            anchorOnBodyA: true,
+            offsetX: 0,
+            offsetY: -BodyDefinitions.Extended.lowerLeg.length / 2
+        },
+        elbow: {
+            lowerAngle: 0,          // Allows full straightening
+            upperAngle: 2.4,        // Increased flexion (approx 137 deg, arm bends forward)
+            maxMotorTorque: 60,
+            anchorOnBodyA: true,
+            offsetX: 0,
+            offsetY: -BodyDefinitions.Extended.upperArm.length / 2
+        },
+        neck: {
+            lowerAngle: -0.8,       // Increased flexion (looking down, approx -45 deg)
+            upperAngle: 0.8,        // Increased extension (looking up, approx 45 deg)
+            maxMotorTorque: 20,     // Increased torque for better head control
+            anchorOnBodyA: false,
+            offsetX: 0,
+            offsetY: BodyDefinitions.Extended.neck.height / 2
+        },
+        shoulder: {
+            lowerAngle: -Math.PI / 2,
+            upperAngle: Math.PI / 1.5,
+            maxMotorTorque: 120,
+            anchorOnBodyA: true,
+            offsetX: 0,
+            offsetY: BodyDefinitions.Extended.upperTorso.height / 2
+        },
+        hip: {
+            lowerAngle: -Math.PI / 2.5,
+            upperAngle: Math.PI / 3,
+            maxMotorTorque: 250,
+            anchorOnBodyA: true,
+            offsetX: 0,
+            offsetY: -BodyDefinitions.Extended.lowerTorso.height / 2
+        }
+    }
+};
+
 class WalkerBody {
     constructor(ownerWalker) {
         this.owner = ownerWalker;
         this.world = this.owner.game.world;
-
-        this.density = 106.2;
-
-        this.bodyDefs = {
-            upperTorso: { width : 0.25, height: 0.45 },
-            lowerTorso: { width : 0.25, height: 0.2  },
-            upperLeg  : { width : 0.18, length: 0.45 },
-            lowerLeg  : { width : 0.13, length: 0.38 },
-            foot      : { length: 0.28, height: 0.08 },
-            upperArm  : { width : 0.12, length: 0.37 },
-            lowerArm  : { width : 0.1 , length: 0.42 },
-            head      : { width : 0.22, height: 0.22 },
-            neck      : { width : 0.1 , height: 0.08 }
-        };
-
-        this.jointDefs = {
-            torso: {
-                lowerAngle: -Math.PI / 18,
-                upperAngle: Math.PI / 10,
-                maxMotorTorque: 250,
-                anchorOnBodyA: true,
-                offsetX: -this.bodyDefs.lowerTorso.width / 3,
-                offsetY: -this.bodyDefs.upperTorso.height / 2
-            },
-            knee: {
-                lowerAngle: -1.6,
-                upperAngle: -0.2,
-                maxMotorTorque: 160,
-                anchorOnBodyA: true,
-                offsetX: this.bodyDefs.upperLeg.width / 4,
-                offsetY: -this.bodyDefs.upperLeg.length / 2
-            },
-            ankle: {
-                lowerAngle: -Math.PI / 5,
-                upperAngle: Math.PI / 6,
-                maxMotorTorque: 70,
-                anchorOnBodyA: true,
-                offsetX: 0,
-                offsetY: -this.bodyDefs.lowerLeg.length / 2
-            },
-            elbow: {
-                lowerAngle: 0,
-                upperAngle: 1.22,
-                maxMotorTorque: 60,
-                anchorOnBodyA: true,
-                offsetX: 0,
-                offsetY: -this.bodyDefs.upperArm.length / 2
-            },
-            neck: {
-                lowerAngle: -0.1,
-                upperAngle: 0.1,
-                maxMotorTorque: 2,
-                anchorOnBodyA: false,
-                offsetX: 0,
-                offsetY: this.bodyDefs.neck.height / 2
-            },
-            shoulder: {
-                lowerAngle: -Math.PI / 2,
-                upperAngle: Math.PI / 1.5,
-                maxMotorTorque: 120,
-                anchorOnBodyA: true,
-                offsetX: 0,
-                offsetY: this.bodyDefs.upperTorso.height / 2
-            },
-            hip: {
-                lowerAngle: -Math.PI / 2.5,
-                upperAngle: Math.PI / 3,
-                maxMotorTorque: 250,
-                anchorOnBodyA: true,
-                offsetX: 0,
-                offsetY: -this.bodyDefs.lowerTorso.height / 2
-            }
-        };
-
+        this.density = BodyDefinitions.Classic.density;
+        this.bodyDefs = BodyDefinitions.Classic;
+        this.jointDefs = JointDefinitions.Extended;
         this.joints = [];
-
         this.torso = this.createTorso();
         this.left_leg = this.createLeg();
         this.right_leg = this.createLeg();
         this.left_arm = this.createArm();
         this.right_arm = this.createArm();
         this.head = this.createHead();
-
         this.connectParts();
-
         this.bodies = this.getBodies();
     }
 
