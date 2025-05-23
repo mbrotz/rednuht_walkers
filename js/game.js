@@ -28,8 +28,6 @@ config = {
     genepool_bins: 60,
     genepool_bin_capacity: 4,
     genepool_bin_selection_pressure: 5.0,
-    genepool_gene_mutation_chance: 1.0,
-    genepool_gene_mutation_strength: 0.05,
 
     pressure_line_starting_offset: 1.75,
     pressure_line_base_speed: 0.001,

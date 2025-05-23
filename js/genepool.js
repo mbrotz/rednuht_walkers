@@ -8,8 +8,6 @@ class GenePool extends Binning {
             gameInstance.config.genepool_bin_selection_pressure
         );
         this.bin_capacity = this.game.config.genepool_bin_capacity;
-        this.gene_mutation_chance = this.game.config.genepool_gene_mutation_chance;
-        this.gene_mutation_strength = this.game.config.genepool_gene_mutation_strength;
         this.start_score = 0.0;
         this.num_walkers = 0;
         this.history = new History(this.game);
@@ -217,8 +215,8 @@ class GenePool extends Binning {
             for (let k = 0; k < genome.length; k++) {
                 for (let g_prop in genome[k]) {
                     if (genome[k].hasOwnProperty(g_prop)) {
-                        if (Math.random() < this.gene_mutation_chance) {
-                            genome[k][g_prop] = genome[k][g_prop] * gaussianRandom(1, this.gene_mutation_strength);
+                        if (Math.random() < this.game.config.mutation_chance) {
+                            genome[k][g_prop] = genome[k][g_prop] * gaussianRandom(1, this.game.config.mutation_strength);
                             mutated = true;
                         }
                     }
