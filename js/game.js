@@ -34,7 +34,6 @@ config = {
     pressure_line_starting_offset: 1.75,
     pressure_line_base_speed: 0.001,
     pressure_line_acceleration: 0.0000025,
-    max_steps_without_improvement: 240,
     head_floor_collision_kills: true,
 };
 

@@ -3,17 +3,16 @@ class Walker {
         this.game = gameInstance;
         this.id = 0;
         this.is_eliminated = false;
-        this.max_torso_position = 0;
         this.mean_head_height = 0;
         this.mean_head_height_sum = 0;
         this.mean_forward_velocity = 0;
         this.mean_forward_velocity_sum = 0;
-        this.steps_without_improvement = 0;
         this.local_step_counter = 0;
         this.score = 0.0;
         this.body = new WalkerBody(this);
         this.initial_head_position = this.getHeadPosition();
         this.initial_torso_position = this.getTorsoPosition();
+        this.max_torso_position = 0;
         this.pressure_line_position = this.initial_torso_position - this.game.config.pressure_line_starting_offset;
         this.pressure_line_speed = this.game.config.pressure_line_base_speed;
         this.head_floor_contact = false;
@@ -50,10 +49,6 @@ class Walker {
         return this.game.max_floor_x < this.getTorsoPosition();
     }
 
-    isSlacker() {
-        return this.steps_without_improvement >= this.game.config.max_steps_without_improvement
-    }
-
     destroyBody() {
         if (this.body) {
             this.body.destroy();
@@ -75,21 +70,11 @@ class Walker {
     }
 
     updateMetrics() {
-        if (this.local_step_counter > 0) {
-            let torso_position = this.getTorsoPosition();
-            let forward_change = Math.max(0, torso_position - this.max_torso_position);
-            this.max_torso_position = Math.max(this.max_torso_position, torso_position);
-            if (forward_change > 0) {
-                this.mean_head_height_sum += this.getNormalizedHeadPosition();
-                this.mean_forward_velocity_sum += forward_change * this.game.config.time_step;
-                this.steps_without_improvement = 0;
-            } else {
-                this.steps_without_improvement++;
-            }
-            this.mean_forward_velocity = this.mean_forward_velocity_sum / this.local_step_counter;
-            this.mean_head_height = this.mean_head_height_sum / this.local_step_counter;
-            this.score += forward_change * (1.0 + this.mean_forward_velocity);
-        }
+        this.max_torso_position = Math.max(this.max_torso_position, this.getTorsoPosition() - this.initial_torso_position);
+        this.mean_forward_velocity = (this.max_torso_position / this.local_step_counter) * this.game.config.time_step;
+        this.mean_head_height_sum += this.getNormalizedHeadPosition();
+        this.mean_head_height = this.mean_head_height_sum / this.local_step_counter;
+        this.score = this.max_torso_position * (1.0 + this.mean_forward_velocity);
     }
 
     updatePressureLine() {
@@ -98,27 +83,21 @@ class Walker {
     }
 
     updateEliminated() {
-        if (this.isSlacker()) {
-            this.is_eliminated = true;
-            //console.log("slacker: " + this.score);
-        }
         if (this.isOffFloor()) {
             this.is_eliminated = true;
-            //console.log("off floor: " + this.score);
         }
         if (this.getPressureLineDistance() <= 0) {
             this.is_eliminated = true;
-            //console.log("pressure line: " + this.score);
         }
     }
 
     simulationStep() {
         if (!this.is_eliminated) {
+            this.local_step_counter++;
             this.body.updateJoints();
             this.updateMetrics();
             this.updatePressureLine();
             this.updateEliminated();
-            this.local_step_counter++;
         }
     }
 
