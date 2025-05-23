@@ -174,12 +174,11 @@ class GenePool extends Binning {
         this.adjustEntries();
     }
 
-    placeGenome(walker) {
+    placeWalker(walker) {
         for (let i = this.num_bins - 1; i >= 0; i--) {
             let bin = this.bins[i];
             if (walker.score >= bin.low_score) {
                 if (bin.entries.length >= this.bin_capacity) {
-                    //let removed_entry = this.removeLowestHeadEntry(i, walker.mean_head_height);
                     let removed_entry = this.removeLowestPerformingEntry(i, walker.score);
                     if (removed_entry === null) {
                         if (Math.random() < 0.25) {
@@ -189,7 +188,7 @@ class GenePool extends Binning {
                         }
                     }
                 }
-                bin.entries.push(walker.toEntry());
+                bin.entries.push(walker.toEntry(true));
                 this.num_walkers++;
                 this.updateMean(i, walker.score);
                 return true;
@@ -209,21 +208,12 @@ class GenePool extends Binning {
         return selected_bin.entries[selected_entry_index];
     }
 
-    mutateGenome(genome) {
-        let mutated = false;
-        while (!mutated) {
-            for (let k = 0; k < genome.length; k++) {
-                for (let g_prop in genome[k]) {
-                    if (genome[k].hasOwnProperty(g_prop)) {
-                        if (Math.random() < this.game.config.mutation_chance) {
-                            genome[k][g_prop] = genome[k][g_prop] * gaussianRandom(1, this.game.config.mutation_strength);
-                            mutated = true;
-                        }
-                    }
-                }
-            }
-        }
-        return genome;
+    mutateBrain(brain) {
+        let new_brain = brain.copy();
+        new_brain.mutate(this.game.config.mutation_chance / 2, this.game.config.mutation_stddev / 2,
+                         this.game.config.mutation_chance, this.game.config.mutation_stddev,
+                         this.game.config.mutation_chance / 5, this.game.config.mutation_stddev / 5);
+        return new_brain;
     }
 
     isEmpty() {
@@ -240,18 +230,18 @@ class GenePool extends Binning {
         if (is_highscore) {
             this.adjustBinScores();
         }
-        this.placeGenome(walker);
+        this.placeWalker(walker);
         return is_highscore;
     }
 
-    selectParentGenome() {
+    selectParentBrain() {
         if (this.history.record_holder && Math.random() < 0.05)
-            return JSON.parse(this.history.record_holder.genome);
+            return this.history.record_holder.brain;
         let eligible_bins = this.getEligibleBins();
         let selected_bin = this.selectBinWeighted(eligible_bins);
         let selected_parent_entry = this.selectParentEntryUniform(selected_bin);
         if (selected_parent_entry !== null)
-            return JSON.parse(selected_parent_entry.genome);
+            return selected_parent_entry.brain;
         return null;
     }
 
@@ -260,9 +250,9 @@ class GenePool extends Binning {
     }
 
     createMutatedWalker() {
-        let genome = this.selectParentGenome();
-        if (genome) {
-            return new Walker(this.game, this.mutateGenome(genome));
+        let brain = this.selectParentBrain();
+        if (brain) {
+            return new Walker(this.game, this.mutateBrain(brain));
         }
         return this.createRandomWalker();
     }

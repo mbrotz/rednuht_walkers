@@ -2,12 +2,12 @@ config = {
     time_step: 60,
     simulation_fps: 60,
     render_fps: 60,
-    velocity_iterations: 8,
-    position_iterations: 3,
+    velocity_iterations: 16,
+    position_iterations: 5,
     max_floor_tiles: 200,
 
-    mutation_chance: 1,
-    mutation_amount: 0.05,
+    mutation_chance: 0.1,
+    mutation_stddev: 0.5,
 
     camera_start_x: 0,
     camera_start_y: 280,
@@ -21,18 +21,18 @@ config = {
     mapelites_height_bins: 60,
     mapelites_threshold: 0.2,
     mapelites_range_decay: 0.98,
-    mapelites_bin_selection_pressure: 5.0,
+    mapelites_bin_selection_pressure: 1.0,
 
     genepool_threshold: 0.25,
     genepool_range_decay: 0.95,
     genepool_bins: 60,
     genepool_bin_capacity: 4,
-    genepool_bin_selection_pressure: 5.0,
+    genepool_bin_selection_pressure: 10.0,
 
     pressure_line_starting_offset: 1.75,
     pressure_line_base_speed: 0.001,
     pressure_line_acceleration: 0.0000025,
-    head_floor_collision_kills: true,
+    head_floor_collision_kills: false,
 };
 
 function gaussianRandom(mean = 0, stdev = 1) {
@@ -65,7 +65,7 @@ class HeadFloorContactListener extends b2.ContactListener {
                 if (!walker.head_floor_contact) {
                     walker.head_floor_contact = true;
                     walker.head_floor_contact_at_step = walker.local_step_count;
-                    walker.head_floor_contact_torso_x = walker.getTorsoPosition();
+                    walker.head_floor_contact_torso_x = walker.getUpperTorsoPosition();
                 }
             }
         }
@@ -103,6 +103,7 @@ class Game {
             edges.push(new b2.Vec2(edges[edges.length-1].x + 1,-0.16));
         }
         this.max_floor_x = edges[edges.length-1].x;
+        this.floor_y = edges[0].y;
         fix_def.shape.CreateChain(edges, edges.length);
         let floorFixtureInstance = body.CreateFixture(fix_def);
         floorFixtureInstance.SetUserData({ isFloor: true });

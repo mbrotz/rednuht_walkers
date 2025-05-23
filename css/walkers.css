@@ -205,3 +205,97 @@ select {
     display: inline-block;
     width: 180px;
 }
+
+/* Markdown Styles */
+
+#about {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    line-height: 1.6;
+    color: #333;
+    padding: 10px 20px 20px 20px; /* Adjusted padding */
+    max-width: 900px; /* Optional: for better readability on wide screens */
+    margin: 0 auto; /* Optional: center if max-width is used */
+}
+
+#about h2 {
+    border-bottom: 2px solid #eaecef; /* GitHub-like border */
+    padding-bottom: 0.3em;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    font-size: 1.75em; /* Slightly larger for the main title of the section */
+}
+
+#about h3 {
+    font-size: 1.5em;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    border-bottom: 1px solid #eaecef; /* GitHub-like border */
+    padding-bottom: 0.3em;
+}
+
+#about h4 {
+    font-size: 1.25em;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+#about p {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+#about strong {
+    font-weight: 600;
+}
+
+#about code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    margin: 0;
+    background-color: rgba(27,31,35,0.05);
+    border-radius: 3px;
+}
+
+#about ol,
+#about ul {
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-left: 2em; /* Standard indentation for lists */
+}
+
+#about ol li,
+#about ul li {
+    margin-bottom: 0.4em; /* Spacing between list items */
+}
+
+#about ul ul,
+#about ol ol,
+#about ul ol,
+#about ol ul {
+    margin-top: 0.2em; /* Reduced margin for nested lists */
+    margin-bottom: 0.2em;
+}
+
+#about hr {
+    height: 0.25em;
+    padding: 0;
+    margin: 24px 0;
+    background-color: #e1e4e8; /* GitHub-like hr */
+    border: 0;
+}
+
+/* Container for the about section for background and overall padding */
+#about_section_container {
+    background-color: #f6f8fa; /* Light GitHub-like background */
+    border-top: 1px solid #e1e4e8;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin-top: 20px;
+}

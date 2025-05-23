@@ -55,7 +55,7 @@ class History {
     addWalker(walker, allow_non_highscore = false) {
         let is_highscore = walker.score > this.record_score;
         if (is_highscore || allow_non_highscore === true) {
-            let entry = walker.toEntry();
+            let entry = walker.toEntry(true);
             this.walkers.push(entry);
             if (is_highscore) {
                 this.record_holder = entry;

@@ -26,6 +26,7 @@ class Camera {
                 max_y = Math.max(max_y, dist.y, current_head_y_for_zoom);
             }
         }
+        min_x = this.start_x; // simple workaround to prevent overactive camera zoom
         if (activeWalkerFound) {
             return {min_x: min_x, max_x: max_x, min_y: min_y, max_y: max_y};
         }
@@ -348,7 +349,7 @@ class Renderer {
             let walker = walkers[k];
             if (walker && !walker.is_eliminated) {
                 this.drawWalker(walker);
-                this.drawWalkerTorsoIndicator(walker.getTorsoPosition(), floor);
+                this.drawWalkerTorsoIndicator(walker.getLowerTorsoPosition(), floor);
             }
         }
     }

@@ -8,7 +8,7 @@ class Interface {
         this.historyListEl = document.getElementById("history_list");
 
         this.mutationChanceSelectEl = document.getElementById("mutation_chance");
-        this.mutationAmountSelectEl = document.getElementById("mutation_amount");
+        this.mutationAmountSelectEl = document.getElementById("mutation_stddev");
         this.renderFpsSelectEl = document.getElementById("render_fps");
         this.simulationFpsSelectEl = document.getElementById("simulation_fps");
 
@@ -54,7 +54,7 @@ class Interface {
         setInterval(() => this.setQuote(), 60000);
 
         this.setupSelectControl(this.mutationChanceSelectEl, "mutation_chance", true);
-        this.setupSelectControl(this.mutationAmountSelectEl, "mutation_amount", true);
+        this.setupSelectControl(this.mutationAmountSelectEl, "mutation_stddev", true);
 
         if (this.renderFpsSelectEl) {
             for (let k = 0; k < this.renderFpsSelectEl.options.length; k++) {
@@ -152,7 +152,7 @@ class Interface {
         tr.appendChild(td);
         td = document.createElement("TD");
         td.className = "score";
-        td.appendChild(document.createTextNode(walkerData.score.toFixed(2) + " (H: " + walkerData.mean_head_height.toFixed(2) + ", D: " + walkerData.max_torso_position.toFixed(2) + ")"));
+        td.appendChild(document.createTextNode(walkerData.score.toFixed(2) + " (H: " + walkerData.mean_head_height.toFixed(2) + ", D: " + walkerData.max_upper_torso_position.toFixed(2) + ")"));
         tr.appendChild(td);
         if (isHistory === true) {
             if (nameListEl.firstChild) {

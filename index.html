@@ -5,6 +5,7 @@
     <title>HTML5 Genetic Algorithm Biped Walkers</title>
     <link rel="stylesheet" href="css/walkers.css" type="text/css" />
     <script src="js/jsbox2d.min.js"></script>
+    <script src="js/neuralnetwork.js"></script>
     <script src="js/walkerbody.js"></script>
     <script src="js/walker.js"></script>
     <script src="js/population.js"></script>
@@ -14,100 +15,6 @@
     <script src="js/interface.js"></script>
     <script src="js/gameloop.js"></script>
     <script src="js/game.js"></script>
-    <style>
-        /* Styles for the #about section to mimic Markdown rendering */
-        #about {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-            line-height: 1.6;
-            color: #333;
-            padding: 10px 20px 20px 20px; /* Adjusted padding */
-            max-width: 900px; /* Optional: for better readability on wide screens */
-            margin: 0 auto; /* Optional: center if max-width is used */
-        }
-
-        #about h2 {
-            border-bottom: 2px solid #eaecef; /* GitHub-like border */
-            padding-bottom: 0.3em;
-            margin-top: 24px;
-            margin-bottom: 16px;
-            font-weight: 600;
-            line-height: 1.25;
-            font-size: 1.75em; /* Slightly larger for the main title of the section */
-        }
-
-        #about h3 {
-            font-size: 1.5em;
-            margin-top: 24px;
-            margin-bottom: 16px;
-            font-weight: 600;
-            line-height: 1.25;
-            border-bottom: 1px solid #eaecef; /* GitHub-like border */
-            padding-bottom: 0.3em;
-        }
-
-        #about h4 {
-            font-size: 1.25em;
-            margin-top: 24px;
-            margin-bottom: 16px;
-            font-weight: 600;
-            line-height: 1.25;
-        }
-
-        #about p {
-            margin-top: 0;
-            margin-bottom: 16px;
-        }
-
-        #about strong {
-            font-weight: 600;
-        }
-
-        #about code {
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-            font-size: 85%;
-            padding: 0.2em 0.4em;
-            margin: 0;
-            background-color: rgba(27,31,35,0.05);
-            border-radius: 3px;
-        }
-
-        #about ol,
-        #about ul {
-            margin-top: 0;
-            margin-bottom: 16px;
-            padding-left: 2em; /* Standard indentation for lists */
-        }
-
-        #about ol li,
-        #about ul li {
-            margin-bottom: 0.4em; /* Spacing between list items */
-        }
-        
-        #about ul ul,
-        #about ol ol,
-        #about ul ol,
-        #about ol ul {
-            margin-top: 0.2em; /* Reduced margin for nested lists */
-            margin-bottom: 0.2em;
-        }
-
-        #about hr {
-            height: 0.25em;
-            padding: 0;
-            margin: 24px 0;
-            background-color: #e1e4e8; /* GitHub-like hr */
-            border: 0;
-        }
-        
-        /* Container for the about section for background and overall padding */
-        #about_section_container {
-            background-color: #f6f8fa; /* Light GitHub-like background */
-            border-top: 1px solid #e1e4e8;
-            padding-top: 10px;
-            padding-bottom: 10px;
-            margin-top: 20px;
-        }
-    </style>
     <script>
         function init() {
             window.geneticWalkersGame = new Game(config);
@@ -170,7 +77,7 @@
             <div class="controls_panel" id="controls_settings_panel">
                 <h2>Simulation Controls</h2>
                 <div class="control_group">
-                    <label for="mutation_chance">Mutation Chance <span class="control_description">- Probability a gene mutates in an offspring.</span></label>
+                    <label for="mutation_chance">Mutation Chance <span class="control_description">- Probability a gene mutates.</span></label>
                     <select id="mutation_chance">
                         <option value="0.01">1%</option>
                         <option value="0.05">5%</option>
@@ -182,15 +89,16 @@
                     </select>
                 </div>
                 <div class="control_group">
-                    <label for="mutation_amount">Mutation Strength <span class="control_description">- Max percentage a gene value changes during mutation.</span></label>
-                    <select id="mutation_amount">
-                        <option value="0.01">1%</option>
-                        <option value="0.05">5%</option>
-                        <option value="0.1">10%</option>
-                        <option value="0.25">25%</option>
-                        <option value="0.5">50%</option>
-                        <option value="0.75">75%</option>
-                        <option value="1">100%</option>
+                    <label for="mutation_stddev">Mutation Standard Deviation <span class="control_description">- Max standard deviation of a mutated gene.</span></label>
+                    <select id="mutation_stddev">
+                        <option value="0.01">0.01</option>
+                        <option value="0.05">0.05</option>
+                        <option value="0.1">0.1</option>
+                        <option value="0.25">0.25</option>
+                        <option value="0.5">0.5</option>
+                        <option value="0.75">0.75</option>
+                        <option value="1.0">1.0</option>
+                        <option value="1.5">1.5</option>
                     </select>
                 </div>
                 <div class="control_group">
