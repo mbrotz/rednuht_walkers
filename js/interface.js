@@ -152,7 +152,7 @@ class Interface {
         tr.appendChild(td);
         td = document.createElement("TD");
         td.className = "score";
-        td.appendChild(document.createTextNode(walkerData.score.toFixed(2) + " (H: " + walkerData.mean_head_height.toFixed(2) + ", V: " + walkerData.mean_forward_velocity.toFixed(2) + ")"));
+        td.appendChild(document.createTextNode(walkerData.score.toFixed(2) + " (H: " + walkerData.mean_head_height.toFixed(2) + ", D: " + walkerData.max_torso_position.toFixed(2) + ")"));
         tr.appendChild(td);
         if (isHistory === true) {
             if (nameListEl.firstChild) {

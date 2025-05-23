@@ -16,6 +16,9 @@ class Walker {
         this.initial_torso_position = this.getTorsoPosition();
         this.pressure_line_position = this.initial_torso_position - this.game.config.pressure_line_starting_offset;
         this.pressure_line_speed = this.game.config.pressure_line_base_speed;
+        this.head_floor_contact = false;
+        this.head_floor_contact_at_step = -1;
+        this.head_floor_contact_torso_x = -1;
         if (genome) {
             this.genome = genome;
         } else {
@@ -58,21 +61,34 @@ class Walker {
         }
     }
 
+    toEntry() {
+        return {
+            id: this.id,
+            name: this.name,
+            score: this.score,
+            mean_head_height: this.mean_head_height,
+            mean_head_height: this.mean_head_height,
+            mean_forward_velocity: this.mean_forward_velocity,
+            max_torso_position: this.max_torso_position,
+            genome: JSON.stringify(this.genome),
+        };
+    }
+
     updateMetrics() {
         if (this.local_step_counter > 0) {
             let torso_position = this.getTorsoPosition();
-            let forward_change = Math.max(0, torso_position - this.max_torso_position) * this.game.config.time_step;
+            let forward_change = Math.max(0, torso_position - this.max_torso_position);
             this.max_torso_position = Math.max(this.max_torso_position, torso_position);
             if (forward_change > 0) {
                 this.mean_head_height_sum += this.getNormalizedHeadPosition();
-                this.mean_forward_velocity_sum += forward_change;
+                this.mean_forward_velocity_sum += forward_change * this.game.config.time_step;
                 this.steps_without_improvement = 0;
             } else {
                 this.steps_without_improvement++;
             }
-            this.mean_head_height = this.mean_head_height_sum / this.local_step_counter;
             this.mean_forward_velocity = this.mean_forward_velocity_sum / this.local_step_counter;
-            this.score = this.max_torso_position;
+            this.mean_head_height = this.mean_head_height_sum / this.local_step_counter;
+            this.score += forward_change * (1.0 + this.mean_forward_velocity);
         }
     }
 

@@ -55,14 +55,7 @@ class History {
     addWalker(walker, allow_non_highscore = false) {
         let is_highscore = walker.score > this.record_score;
         if (is_highscore || allow_non_highscore === true) {
-            let entry = {
-                id: walker.id,
-                name: walker.name,
-                score: walker.score,
-                mean_head_height: walker.mean_head_height,
-                mean_forward_velocity: walker.mean_forward_velocity,
-                genome: JSON.stringify(walker.genome),
-            };
+            let entry = walker.toEntry();
             this.walkers.push(entry);
             if (is_highscore) {
                 this.record_holder = entry;

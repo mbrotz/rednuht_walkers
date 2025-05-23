@@ -176,14 +176,6 @@ class GenePool extends Binning {
         this.adjustEntries();
     }
 
-    entryFromWalker(walker) {
-        return {
-            genome: JSON.stringify(walker.genome),
-            score: walker.score,
-            mean_head_height: walker.mean_head_height,
-        };
-    }
-
     placeGenome(walker) {
         for (let i = this.num_bins - 1; i >= 0; i--) {
             let bin = this.bins[i];
@@ -199,7 +191,7 @@ class GenePool extends Binning {
                         }
                     }
                 }
-                bin.entries.push(this.entryFromWalker(walker));
+                bin.entries.push(walker.toEntry());
                 this.num_walkers++;
                 this.updateMean(i, walker.score);
                 return true;
