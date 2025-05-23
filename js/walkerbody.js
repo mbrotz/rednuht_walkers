@@ -121,6 +121,7 @@ class WalkerBody {
         let fd = new b2.FixtureDef();
         fd.density = this.density;
         fd.restitution = 0.1;
+        fd.friction = 0.5;
         fd.filter.groupIndex = -1;
         fd.shape = new b2.PolygonShape();
         fd.shape.SetAsBox(boxWidth / 2, boxHeight / 2);
