@@ -6,43 +6,57 @@ class GameLoop {
         this.render_fps = this.game.config.render_fps;
         this.velocity_iterations = this.game.config.velocity_iterations;
         this.position_iterations = this.game.config.position_iterations;
+
         this.paused = (this.simulation_fps === 0);
         this.lastTimestamp = 0;
         this.simulationAccumulator = 0;
         this.renderAccumulator = 0;
         this.animationFrameId = null;
         this.recentStepDurations = [];
-        this.avgStepDurationMs = (1.0 / this.time_step) * 1000;
 
         this.PHYSICS_FIXED_DELTA_TIME_SECONDS = 1.0 / this.time_step;
         this.PHYSICS_FIXED_DELTA_TIME_MS = this.PHYSICS_FIXED_DELTA_TIME_SECONDS * 1000;
+        this.avgStepDurationMs = this.PHYSICS_FIXED_DELTA_TIME_MS;
 
         this.MAX_RECENT_STEP_DURATIONS = 10;
 
-        this.paused = (this.simulation_fps === 0);
+        this.isTabActive = !document.hidden;
+        document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+    }
+
+    handleVisibilityChange() {
+        const becomingVisible = !document.hidden && !this.isTabActive;
+        this.isTabActive = !document.hidden;
+        if (becomingVisible) {
+            this.lastTimestamp = performance.now();
+            this.simulationAccumulator = 0;
+            this.renderAccumulator = 0;
+            if (this.animationFrameId === null && (this.simulation_fps !== 0 || this.render_fps > 0)) {
+                this.startMainLoop();
+            }
+        }
     }
 
     startMainLoop() {
         if (!this.paused || this.render_fps > 0) {
             if (this.animationFrameId === null) {
-                this.lastTimestamp = 0;
+                if (this.lastTimestamp === 0) {
+                    this.lastTimestamp = performance.now();
+                }
                 this.simulationAccumulator = 0;
                 this.renderAccumulator = 0;
+                this.animationFrameId = requestAnimationFrame(this.mainLoop.bind(this));
             }
-            this.animationFrameId = requestAnimationFrame(this.mainLoop.bind(this));
         }
     }
 
-    simulationStepInternal() { // Renamed from _simulationStep due to conflict with user-facing simulationStep
+    simulationStepInternal() {
         const stepStartTime = performance.now();
-
         this.game.population.simulationStep();
         this.game.world.Step(this.PHYSICS_FIXED_DELTA_TIME_SECONDS, this.velocity_iterations, this.position_iterations);
-
-        if (this.game.interface) {
+        if (this.isTabActive && this.game.interface) {
             this.game.interface.updateUI();
         }
-
         const stepEndTime = performance.now();
         this.recentStepDurations.push(stepEndTime - stepStartTime);
         if (this.recentStepDurations.length > this.MAX_RECENT_STEP_DURATIONS) {
@@ -50,33 +64,30 @@ class GameLoop {
         }
         if (this.recentStepDurations.length > 0) {
             this.avgStepDurationMs = this.recentStepDurations.reduce((a, b) => a + b, 0) / this.recentStepDurations.length;
+        } else {
+            this.avgStepDurationMs = this.PHYSICS_FIXED_DELTA_TIME_MS;
         }
     }
 
     mainLoop(currentTimestamp) {
         this.animationFrameId = requestAnimationFrame(this.mainLoop.bind(this));
-
         if (this.lastTimestamp === 0) {
             this.lastTimestamp = currentTimestamp;
             return;
         }
-
         let deltaTimeMs = currentTimestamp - this.lastTimestamp;
         this.lastTimestamp = currentTimestamp;
-
-        const MAX_DELTA_TIME_MS_CAP = 250;
+        const MAX_DELTA_TIME_MS_CAP = this.isTabActive ? 100 : 250;
         if (deltaTimeMs > MAX_DELTA_TIME_MS_CAP) {
-            console.warn(`DeltaTime capped from ${deltaTimeMs.toFixed(2)}ms to ${MAX_DELTA_TIME_MS_CAP}ms`);
             deltaTimeMs = MAX_DELTA_TIME_MS_CAP;
         }
-
         if (!this.paused) {
             if (this.simulation_fps === -1) {
                 const frameStartTime = performance.now();
                 let stepsThisFrame = 0;
                 const timeBudgetMs = deltaTimeMs * 0.95;
-
-                while (true) {
+                const MAX_STEPS_IN_ASAP_FRAME = 10;
+                while (stepsThisFrame < MAX_STEPS_IN_ASAP_FRAME) {
                     this.simulationStepInternal();
                     stepsThisFrame++;
                     const elapsedInFrameProcessing = performance.now() - frameStartTime;
@@ -92,30 +103,29 @@ class GameLoop {
                 this.simulationAccumulator += deltaTimeMs;
                 let physicsStepsThisFrame = 0;
                 const maxIter = Math.max(10, Math.ceil(this.simulation_fps / 15) + 5);
-
                 while (this.simulationAccumulator >= this.PHYSICS_FIXED_DELTA_TIME_MS && physicsStepsThisFrame < maxIter) {
                     this.simulationStepInternal();
                     this.simulationAccumulator -= this.PHYSICS_FIXED_DELTA_TIME_MS;
                     physicsStepsThisFrame++;
                 }
                 if (physicsStepsThisFrame >= maxIter && this.simulationAccumulator >= this.PHYSICS_FIXED_DELTA_TIME_MS) {
-                    console.warn(`Max physics steps (${maxIter}) per frame reached in target FPS mode. Simulation might be falling behind target.`);
+                    this.simulationAccumulator = Math.min(this.simulationAccumulator, 3 * this.PHYSICS_FIXED_DELTA_TIME_MS);
                 }
             }
         } else {
             this.simulationAccumulator = 0;
         }
-
-        if (this.render_fps > 0) {
+        if (this.render_fps > 0 && this.isTabActive) {
             const renderIntervalMs = 1000 / this.render_fps;
             this.renderAccumulator += deltaTimeMs;
-
             if (this.renderAccumulator >= renderIntervalMs) {
                 if (this.game.renderer) {
                     this.game.renderer.drawFrame();
                 }
                 this.renderAccumulator %= renderIntervalMs;
             }
+        } else if (this.render_fps > 0 && !this.isTabActive) {
+            this.renderAccumulator = 0;
         }
     }
 
@@ -123,18 +133,15 @@ class GameLoop {
         const oldRenderFps = this.render_fps;
         this.render_fps = fps;
         this.game.config.render_fps = fps;
-
         if (fps > 0 && oldRenderFps === 0) {
             this.renderAccumulator = 0;
             if (this.animationFrameId === null) {
-                console.log("Restarting mainLoop due to render_fps change.");
                 this.startMainLoop();
             }
         } else if (fps === 0 && this.simulation_fps === 0) {
             if (this.animationFrameId !== null) {
-                console.log("Stopping mainLoop completely (render and sim off).");
                 cancelAnimationFrame(this.animationFrameId);
-                this.animationFrameId = null;
+                this.animationFrameId = null; 
             }
         }
     }
@@ -143,25 +150,18 @@ class GameLoop {
         const oldSimFps = this.simulation_fps;
         this.simulation_fps = fps;
         this.game.config.simulation_fps = fps;
-
-        if (fps !== 0) {
-            if (this.paused || oldSimFps === 0) {
-                this.paused = false;
-
-                this.recentStepDurations = [];
-                this.avgStepDurationMs = this.PHYSICS_FIXED_DELTA_TIME_MS;
-
-                if (this.animationFrameId === null) {
-                    console.log("Restarting mainLoop due to simulation_fps change from 0/paused.");
-                    this.startMainLoop();
-                }
+        this.paused = (fps === 0); 
+        if (fps !== 0 && oldSimFps === 0) {
+            this.simulationAccumulator = 0;
+            this.recentStepDurations = []; 
+            this.avgStepDurationMs = this.PHYSICS_FIXED_DELTA_TIME_MS;
+            if (this.animationFrameId === null) {
+                this.startMainLoop();
             }
-        } else {
-            this.paused = true;
-            if (this.render_fps === 0 && this.animationFrameId !== null) {
-                console.log("Stopping mainLoop completely (sim paused and render off).");
+        } else if (fps === 0 && this.render_fps === 0) {
+            if (this.animationFrameId !== null) {
                 cancelAnimationFrame(this.animationFrameId);
-                this.animationFrameId = null;
+                this.animationFrameId = null; 
             }
         }
     }
