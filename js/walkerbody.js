@@ -207,14 +207,9 @@ class WalkerBody {
     }
 
     createRevoluteJoint(bodyA, bodyB, jointConfig) {
-        let worldAnchorPos;
-        if (jointConfig.anchorOnBodyA) {
-            worldAnchorPos = bodyA.GetPosition().Clone();
-        } else {
-            worldAnchorPos = bodyB.GetPosition().Clone();
-        }
-        worldAnchorPos.x += (jointConfig.offsetX || 0);
-        worldAnchorPos.y += (jointConfig.offsetY || 0);
+        let anchorBody = jointConfig.anchorOnBodyA ? bodyA : bodyB;
+        let localAnchor = new b2.Vec2(jointConfig.offsetX || 0, jointConfig.offsetY || 0);
+        let worldAnchorPos = anchorBody.GetWorldPoint(localAnchor);
         let jd = new b2.RevoluteJointDef();
         jd.Initialize(bodyA, bodyB, worldAnchorPos);
         jd.lowerAngle = jointConfig.lowerAngle;
