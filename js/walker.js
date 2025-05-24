@@ -35,7 +35,7 @@ class Walker {
         } else {
             this.brain = this.createBrain();
         }
-        this.name = this.makeName();
+        this.name = Walker.makeName(this.brain.getParams());
     }
 
     getHeadHeight() {
@@ -169,7 +169,7 @@ class Walker {
     }
 
     createBrain() {
-        return new NeuralNetwork(45, 25, 12);
+        return new NeuralNetwork(45, [35, 25], 12);
     }
 
     updateBrain() {
@@ -271,66 +271,51 @@ class Walker {
         }
     }
 
-    makeName() {
+    static makeNamePart(data, length, offset, capitalizeFirst, vowels, consonants) {
+        let name_part = '';
+        let use_vowel = false;
+        for (let i = 0; i < length; i++) {
+            let sum = 0;
+            let index = (offset + i) % data.length;
+            let value = data[index];
+            sum = value * (10000 + (offset % 1300));
+            sum = Math.abs(Math.floor(sum));
+            if (i == 0) {
+                use_vowel = (sum % 2) == 0;
+            }
+            let char_to_add;
+            if (use_vowel) {
+                char_to_add = vowels[sum % vowels.length];
+            } else {
+                char_to_add = consonants[sum % consonants.length];
+            }
+            if (i === 0 && capitalizeFirst) {
+                char_to_add = char_to_add.toUpperCase();
+            }
+            name_part += char_to_add;
+            use_vowel = !use_vowel;
+        }
+        return name_part;
+    }
+
+    static makeName(data) {
         const vowels = ['a', 'e', 'i', 'o', 'u'];
         const consonants = ['b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'w', 'x', 'z'];
-        let nn_parts_to_serialize = [];
-        if (this.brain.input_hidden_weights) nn_parts_to_serialize.push(this.brain.input_hidden_weights);
-        if (this.brain.hidden_biases) nn_parts_to_serialize.push(this.brain.hidden_biases);
-        if (this.brain.hidden_output_weights) nn_parts_to_serialize.push(this.brain.hidden_output_weights);
-        if (this.brain.output_biases) nn_parts_to_serialize.push(this.brain.output_biases);
-        if (this.brain.angle) nn_parts_to_serialize.push(this.brain.angle);
-        let total_nn_params_length = 0;
-        for (const part of nn_parts_to_serialize) {
-            total_nn_params_length += part.length;
-        }
-        let genome_source_array = new Float32Array(total_nn_params_length);
-        let current_offset = 0;
-        for (const part of nn_parts_to_serialize) {
-            genome_source_array.set(part, current_offset);
-            current_offset += part.length;
-        }
-        let generateNamePart = function(source_data, length, capitalizeFirst, gene_start_offset) {
-            let name_part = '';
-            let use_vowel = false;
-            for (let i = 0; i < length; i++) {
-                let sum = 0;
-                let gene_index = (gene_start_offset + i) % source_data.length;
-                let current_gene_value = source_data[gene_index];
-                sum = current_gene_value * (10000 + (gene_start_offset % 1300));
-                sum = Math.abs(Math.floor(sum));
-                if (i == 0) {
-                    use_vowel = (sum % 2) == 0;
-                }
-                let char_to_add;
-                if (use_vowel) {
-                    char_to_add = vowels[sum % vowels.length];
-                } else {
-                    char_to_add = consonants[sum % consonants.length];
-                }
-                if (i === 0 && capitalizeFirst) {
-                    char_to_add = char_to_add.toUpperCase();
-                }
-                name_part += char_to_add;
-                use_vowel = !use_vowel;
-            }
-            return name_part;
-        };
         const min_name_len = 3;
         const max_genus_len = 7;
         const max_species_len = 9;
-        const effective_genome_length = genome_source_array.length;
-        let genus_length = Math.max(min_name_len, Math.min(max_genus_len, Math.floor(effective_genome_length / 200) + min_name_len));
-        let species_length = Math.max(min_name_len, Math.min(max_species_len, Math.floor(effective_genome_length / 150) + min_name_len));
+        const length = data.length;
+        let genus_length = Math.max(min_name_len, Math.min(max_genus_len, Math.floor(length / 200) + min_name_len));
+        let species_length = Math.max(min_name_len, Math.min(max_species_len, Math.floor(length / 150) + min_name_len));
         genus_length = Math.max(min_name_len, genus_length);
         species_length = Math.max(min_name_len, species_length);
-        let genus_name = generateNamePart(genome_source_array, genus_length, true, 0);
+        let genus_name = Walker.makeNamePart(data, genus_length, 0, true, vowels, consonants);
         let species_offset = 0;
-        if (effective_genome_length > 0) {
-            species_offset = Math.floor(effective_genome_length / 3);
+        if (length > 0) {
+            species_offset = Math.floor(length / 3);
         }
-        species_offset = species_offset % effective_genome_length;
-        let species_name = generateNamePart(genome_source_array, species_length, true, species_offset);
+        species_offset = species_offset % length;
+        let species_name = Walker.makeNamePart(data, species_length, species_offset, true, vowels, consonants);
         return genus_name + " " + species_name;
     }
 }
